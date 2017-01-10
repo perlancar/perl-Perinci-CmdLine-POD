@@ -7,11 +7,97 @@ use 5.010001;
 use strict;
 use warnings;
 
-use Perinci::Access::Perl;
+use Data::Dmp;
+use IPC::System::Options qw(system);
+use Proc::ChildError qw(explain_child_error);
+use String::ShellQuote;
 
-our $pa = Perinci::Access::Perl->new;
+use Exporter 'import';
+our @EXPORT_OK = qw(gen_pod_for_pericmd_script);
+
+our $pa = do {
+    require Perinci::Access::Perl;
+    Perinci::Access::Perl->new;
+};
 
 our %SPEC;
+
+sub _fmt_opt {
+    my ($opt, $ospec) = @_;
+
+    my @res;
+
+    my $arg_spec = $ospec->{arg_spec};
+    my $is_bool = $arg_spec->{schema} &&
+        $arg_spec->{schema}[0] eq 'bool';
+    my $show_default = exists($ospec->{default}) &&
+        !$is_bool && !$ospec->{main_opt} && !$ospec->{is_alias};
+
+    my $add_sum = '';
+    if ($ospec->{is_base64}) {
+        $add_sum = " (base64-encoded)";
+    } elsif ($ospec->{is_json}) {
+        $add_sum = " (JSON-encoded)";
+    } elsif ($ospec->{is_yaml}) {
+        $add_sum = " (YAML-encoded)";
+    }
+
+    $opt =~ s/(?P<name>--?.+?)(?P<val>=(?P<dest>[\w@-]+)|,|\z)/"B<" . $+{name} . ">" . ($+{dest} ? "=I<".$+{dest}.">" : $+{val})/eg;
+
+    push @res, "=item $opt\n\n";
+
+    push @res, "$ospec->{summary}$add_sum.\n\n" if $ospec->{summary};
+
+    push @res, "Default value:\n\n ", dmp($ospec->{default}), "\n\n" if $show_default;
+
+    if ($arg_spec->{schema} && $arg_spec->{schema}[1]{in} && !$ospec->{is_alias}) {
+        push @res, "Valid values:\n\n ", dmp($arg_spec->{schema}[1]{in}), "\n\n";
+    }
+
+    if ($ospec->{main_opt}) {
+        my $main_opt = $ospec->{main_opt};
+        $main_opt =~ s/\s*,.+//;
+        $main_opt =~ s/=.+//;
+        push @res, "See C<$main_opt>.\n\n";
+    } else {
+        push @res, "$ospec->{description}\n\n" if $ospec->{description};
+    }
+
+    if (($ospec->{orig_opt} // '') =~ /\@/) {
+        push @res, "Can be specified multiple times.\n\n";
+    } elsif (($ospec->{orig_opt} // '') =~ /\%/) {
+        push @res, "Each value is a name-value pair, use I<key=value> syntax. Can be specified multiple times.\n\n";
+    }
+
+    join "", @res;
+}
+
+sub _list_config_params {
+    my ($clidocdata, $filter) = @_;
+
+    my $opts = $clidocdata->{opts};
+    my %param2opts;
+    for (keys %$opts) {
+        my $ospec = $opts->{$_};
+        next unless $ospec->{common_opt} && $ospec->{common_opt_spec}{is_settable_via_config};
+        next if $filter && !$filter->($ospec);
+        my $oname = $ospec->{opt_parsed}{opts}[0];
+        $oname = length($oname) > 1 ? "--$oname" : "-$oname";
+        $param2opts{ $ospec->{common_opt} } = $oname;
+    }
+    for (keys %$opts) {
+        my $ospec = $opts->{$_};
+        next unless $ospec->{arg};
+        next if $ospec->{main_opt};
+        next if $filter && !$filter->($ospec);
+        my $oname = $ospec->{opt_parsed}{opts}[0];
+        $oname = length($oname) > 1 ? "--$oname" : "-$oname";
+        my $confname = $param2opts{$_} ?
+            "$ospec->{arg}.arg" : $ospec->{arg};
+        $param2opts{$confname} = $oname;
+    }
+    \%param2opts;
+}
 
 $SPEC{gen_pod_for_pericmd_script} = {
     v => 1.1,
@@ -99,6 +185,8 @@ _
     },
 };
 sub gen_pod_for_pericmd_script {
+    no warnings 'once';
+
     my %args = @_;
 
     my %metas; # key = subcommand name
@@ -114,21 +202,26 @@ sub gen_pod_for_pericmd_script {
         %metas = %{ $dump_res->[3]{'func.pericmd_inline_metas'} }
             if $dump_res->[3]{'func.pericmd_inline_metas'};
     } else {
-        $cli = {
-            url         => $args{url},
-            common_opts => $args{common_opts},
-            subcommands => $args{subcommands},
-        };
+        require Perinci::CmdLine::Lite;
+        $cli = Perinci::CmdLine::Lite->new(
+            url                => $args{url},
+            program_name       => $args{program_name},
+            summary            => $args{summary},
+            common_opts        => $args{common_opts},
+            subcommands        => $args{subcommands},
+            default_subcommand => $args{default_subcommand},
+            per_arg_json       => $args{per_arg_json},
+            per_arg_yaml       => $args{per_arg_yaml},
+            read_env           => $args{read_env},
+            env_name           => $args{env_name},
+            read_config        => $args{read_config},
+            config_filename    => $args{config_filenames},
+            config_dirs        => $args{config_dirs},
+        );
     }
 
     local %main::SPEC = %{ $dump_res->[3]{'func.meta'} }
         if $dump_res->[3]{'func.meta'};
-
-    my $prog = $args{program_name} // $cli->{program_name};
-    if (!$prog && defined $args{script}) {
-        $prog = $args{script};
-        $prog =~ s!.+/!!;
-    }
 
     # generate clidocdata(for all subcommands; if there is no subcommand then it
     # is stored in key '')
@@ -136,17 +229,20 @@ sub gen_pod_for_pericmd_script {
     my %urls; # key = subcommand name
 
     {
+        require Perinci::Sub::To::CLIDocData;
+
         my $url = $cli->{url};
         $urls{''} = $url;
-        my $res = $pa->request(meta => $url);
-        die "Can't meta $url: $res->[0] - $res->[1]" unless $res->[0] == 200;
-        my $meta = $res->[2];
-        $metas{''} = $meta;
-
-        $res = gen_cli_doc_data_from_meta(
-            meta => $meta,
+        unless ($metas{''}) {
+            my $res = $pa->request(meta => $url);
+            die "Can't meta $url: $res->[0] - $res->[1]"
+                unless $res->[0] == 200;
+            $metas{''} = $res->[2];
+        }
+        my $res = Perinci::Sub::To::CLIDocData::gen_cli_doc_data_from_meta(
+            meta => $metas{''},
             meta_is_normalized => 0, # because riap client is specifically set not to normalize
-            common_opts => $cli->{common_opts},
+            common_opts  => $cli->{common_opts},
             per_arg_json => $cli->{per_arg_json},
             per_arg_yaml => $cli->{per_arg_yaml},
         );
@@ -156,20 +252,21 @@ sub gen_pod_for_pericmd_script {
 
         if ($cli->{subcommands}) {
             if (ref($cli->{subcommands}) eq 'CODE') {
-                die "Script '$filename': sorry, coderef 'subcommands' not ".
-                    "supported";
+                die "Script '$args{script}': sorry, coderef 'subcommands' not ".
+                    "supported yet";
             }
             for my $sc_name (keys %{ $cli->{subcommands} }) {
                 my $sc_spec = $cli->{subcommands}{$sc_name};
                 my $url = $sc_spec->{url};
                 $urls{$sc_name} = $url;
-                my $res = $pa->request(meta => $url);
-                die "Can't meta $url (subcommand $sc_name): $res->[0] - $res->[1]"
-                    unless $res->[0] == 200;
-                my $meta = $res->[2];
-                $metas{$sc_name} = $meta;
-                $res = gen_cli_doc_data_from_meta(
-                    meta => $meta,
+                unless ($metas{$sc_name}) {
+                    my $res = $pa->request(meta => $url);
+                    die "Can't meta $url (subcommand $sc_name): $res->[0] - $res->[1]"
+                        unless $res->[0] == 200;
+                    $metas{$sc_name} = $res->[2];
+                }
+                $res = Perinci::Sub::To::CLIDocData::gen_cli_doc_data_from_meta(
+                    meta => $metas{$sc_name},
                     meta_is_normalized => 0, # because riap client is specifically set not to normalize
                     common_opts => $cli->{common_opts},
                     per_arg_json => $cli->{per_arg_json},
@@ -182,24 +279,54 @@ sub gen_pod_for_pericmd_script {
         }
     }
 
-    my $modified;
+    my $resmeta = {
+        'func.sections' => [],
+    };
+    my @pod;
 
-    # insert SYNOPSIS section
+    my $prog = $args{program_name} // $cli->{program_name};
+    if (!$prog && defined $args{script}) {
+        $prog = $args{script};
+        $prog =~ s!.+/!!;
+    }
+    my $summary = $args{summary} // $cli->{summary} //
+        $metas{''}{summary} // '(no summary)';
+
+    # section: NAME
     {
-        my @content;
-        push @content, "Usage:\n\n";
+        my @sectpod;
+        push @sectpod, "$prog - $summary\n\n";
+        push @{ $resmeta->{'func.sections'} }, {name=>'NAME', content=>\@sectpod, ignore=>1};
+        push @pod, "=head1 NAME\n\n", @sectpod;
+    }
+
+    my $version = $metas{''}{entity_v} // '(dev)';
+
+    # section: VERSION
+    {
+        my @sectpod;
+        push @sectpod, "$version\n\n";
+        $resmeta->{'func.section.version'} = \@sectpod;
+        push @{ $resmeta->{'func.sections'} }, {name=>'VERSION', content=>\@sectpod, ignore=>1};
+        push @pod, "=head1 VERSION\n\n", @sectpod;
+    }
+
+    # section: SYNOPSIS
+    {
+        my @sectpod;
+        push @sectpod, "Usage:\n\n";
         if ($cli->{subcommands}) {
             for my $sc_name (sort keys %clidocdata) {
                 next unless length $sc_name;
                 my $usage = $clidocdata{$sc_name}->{usage_line};
                 $usage =~ s/\[\[prog\]\]/$prog $sc_name/;
-                push @content, " % $usage\n";
+                push @sectpod, " % $usage\n";
             }
-            push @content, "\n";
+            push @sectpod, "\n";
         } else {
             my $usage = $clidocdata{''}->{usage_line};
             $usage =~ s/\[\[prog\]\]/$prog/;
-            push @content, " % $usage\n\n";
+            push @sectpod, " % $usage\n\n";
         }
 
         my @examples;
@@ -215,14 +342,14 @@ sub gen_pod_for_pericmd_script {
             }
         }
         if (@examples) {
-            push @content, "Examples:\n\n";
+            push @sectpod, "Examples:\n\n";
             for my $eg (@examples) {
                 my $url = $urls{ $eg->{_sc_name} };
                 my $meta = $metas{ $eg->{_sc_name} };
-                push @content, "$eg->{summary}:\n\n" if $eg->{summary};
+                push @sectpod, "$eg->{summary}:\n\n" if $eg->{summary};
                 my $cmdline = $eg->{cmdline};
                 $cmdline =~ s/\[\[prog\]\]/$prog/;
-                push @content, " % $cmdline\n";
+                push @sectpod, " % $cmdline\n";
 
                 my $show_result;
               SHOW_RESULT:
@@ -232,20 +359,16 @@ sub gen_pod_for_pericmd_script {
 
                     if ($eg->{example_spec}{src}) {
                         if ($eg->{example_spec}{src_plang} =~ /\A(bash)\z/) {
-                            # write script to filesystem to a temporary file,
-                            # execute it and get its output
-                            my ($file) = grep { $_->name eq $input->{filename} }
-                                @{ $input->{zilla}->files };
-                            my ($fh, $filename) = tempfile();
-                            print $fh $file->encoded_content;
-                            close $fh;
-                            my $cmdline = $eg->{cmdline};
-                            $cmdline =~ s/\[\[prog\]\]/shell_quote($^X, "-Ilib", $filename)/e;
-                            IPC::System::Options::system(
-                                {shell => 0, capture_stdout => \$fres},
-                                "bash", "-c", $cmdline);
-                            if ($?) {
-                                $self->log_fatal(["Example #%d (subcommand %s): cmdline %s: failed: %s", $eg->{_i}, $eg->{_sc_name}, $cmdline, explain_child_error()]);
+                            # execute script and get its output
+                            if (defined $args{script}) {
+                                my $cmdline = $eg->{cmdline};
+                                $cmdline =~ s/\[\[prog\]\]/shell_quote($^X, "-Ilib", $args{script})/e;
+                                system(
+                                    {shell => 0, capture_stdout => \$fres},
+                                    "bash", "-c", $cmdline);
+                                if ($?) {
+                                    die sprintf("Example #%d (subcommand %s): cmdline %s: failed: %s", $eg->{_i}, $eg->{_sc_name}, $cmdline, explain_child_error());
+                                }
                             }
                             if (my $max_lines = $eg->{example_spec}{'x.doc.max_result_lines'}) {
                                 my @lines = split /^/, $fres;
@@ -255,9 +378,9 @@ sub gen_pod_for_pericmd_script {
                                     $fres = join("", @lines);
                                 }
                             }
-                            $self->log_debug(["fres: %s", $fres]);
+                            #$self->log_debug(["fres: %s", $fres]);
                         } else {
-                            $self->log_debug(["Example #%d (subcommand %s) has src with unsupported src_plang ($eg->{srg_plang}), skipped showing result", $eg->{_i}, $eg->{_sc_name}]);
+                            warn sprintf("Example #%d (subcommand %s) has src with unsupported src_plang ($eg->{srg_plang}), skipped showing result", $eg->{_i}, $eg->{_sc_name});
                             last SHOW_RESULT;
                         }
                     } else {
@@ -271,7 +394,7 @@ sub gen_pod_for_pericmd_script {
                             } elsif ($eg->{example_spec}{args}) {
                                 $extra{args} = $eg->{example_spec}{args};
                             } else {
-                                $self->log_debug(["Example #%d (subcommand %s) doesn't provide args/argv, skipped showing result", $eg->{_i}, $eg->{_sc_name}]);
+                                #$self->log_debug(["Example #%d (subcommand %s) doesn't provide args/argv, skipped showing result", $eg->{_i}, $eg->{_sc_name}]);
                                 last SHOW_RESULT;
                             }
                             $res = $pa->request(call => $url, \%extra);
@@ -282,66 +405,41 @@ sub gen_pod_for_pericmd_script {
                     }
 
                     $fres =~ s/^/ /gm;
-                    push @content, $fres;
-                    push @content, "\n";
+                    push @sectpod, $fres;
+                    push @sectpod, "\n";
                     $show_result = 1;
                 } # SHOW_RESULT
 
                 unless ($show_result) {
-                    push @content, "\n";
+                    push @sectpod, "\n";
                 }
             }
         }
-        last unless @content;
 
-        $self->add_text_to_section(
-            $document, join('', @content), 'SYNOPSIS',
-            {
-                ignore=>1,
-                after_section => [
-                    'VERSION',
-                    'NAME',
-                ],
-                # just to make we don't put it too below
-                before_section => [
-                    'DESCRIPTION',
-                    'SEE ALSO',
-                ],
-            });
-        $modified++;
+        push @{ $resmeta->{'func.sections'} }, {name=>'SYNOPSIS', content=>\@sectpod, ignore=>1};
+        push @pod, "=head1 SYNOPSIS\n\n", @sectpod;
     }
 
-    # insert DESCRIPTION section
+    # section: DESCRIPTION
     {
         last unless $metas{''}{description};
 
-        my @content;
-        push @content,
-            Markdown::To::POD::markdown_to_pod($metas{''}{description});
-        push @content, "\n\n";
+        require Markdown::To::POD;
 
-        $self->add_text_to_section(
-            $document, join('', @content), 'DESCRIPTION',
-            {
-                ignore=>1,
-                after_section=>[
-                    'SYNOPSIS',
-                    'VERSION',
-                    'NAME',
-                ],
-                # make sure we don't put it too below
-                before_section => [
-                    'SEE ALSO',
-                ],
-            });
-        $modified++;
+        my @sectpod;
+        push @sectpod,
+            Markdown::To::POD::markdown_to_pod($metas{''}{description});
+        push @sectpod, "\n\n";
+
+        push @{ $resmeta->{'func.sections'} }, {name=>'DESCRIPTION', content=>\@sectpod, ignore=>1};
+        push @pod, "=head1 DESCRIPTION\n\n", @sectpod;
     }
 
-    # insert SUBCOMMANDS section
+    # section: SUBCOMMANDS
     {
         last unless $cli->{subcommands};
 
-        my @content;
+        my @sectpod;
         my %sc_spec_refs; # key=ref address, val=first subcommand name
         for my $sc_name (sort keys %clidocdata) {
             next unless length $sc_name;
@@ -355,52 +453,41 @@ sub gen_pod_for_pericmd_script {
             }
 
             my $meta = $metas{$sc_name};
-            push @content, "=head2 B<$sc_name>\n\n";
+            push @sectpod, "=head2 B<$sc_name>\n\n";
 
             # assumed alias because spec has been seen before
             if ($spec_same_as) {
-                push @content, "Alias for C<$spec_same_as>.\n\n";
+                push @sectpod, "Alias for C<$spec_same_as>.\n\n";
                 next;
             }
 
             my $summary = $sc_spec->{summary} // $meta->{summary};
-            push @content, "$summary.\n\n" if $summary;
+            push @sectpod, "$summary.\n\n" if $summary;
 
             next if $sc_spec->{is_alias};
 
             my $description = $sc_spec->{description} // $meta->{description};
             if ($description) {
-                push @content,
+                push @sectpod,
                     Markdown::To::POD::markdown_to_pod($description);
-                push @content, "\n\n";
+                push @sectpod, "\n\n";
             }
         }
 
-        $self->add_text_to_section(
-            $document, join('', @content), 'SUBCOMMANDS',
-            {
-                ignore=>1,
-                after_section => [
-                    'DESCRIPTION',
-                    'SYNOPSIS',
-                ],
-                # make sure we don't put it too below
-                before_section => [
-                    'OPTIONS',
-                    'SEE ALSO',
-                ],
-            });
-        $modified++;
+        push @{ $resmeta->{'func.sections'} }, {name=>'SUBCOMMANDS', content=>\@sectpod, ignore=>1};
+        push @pod, "=head1 SUBCOMMANDS\n\n", @sectpod;
     }
 
     my @sc_names = grep { length } sort keys %clidocdata;
 
-    # insert OPTIONS section
+    # section: OPTIONS
     {
-        my @content;
-        push @content, "C<*> marks required options.\n\n";
+        my @sectpod;
+        push @sectpod, "C<*> marks required options.\n\n";
 
         if ($cli->{subcommands}) {
+
+            use experimental 'smartmatch';
 
             # currently categorize by subcommand instead of category
 
@@ -416,19 +503,18 @@ sub gen_pod_for_pericmd_script {
             # --log-level). these are supposed to be the same across
             # subcommands.
             {
-                use experimental 'smartmatch';
                 my $opts = $clidocdata{ $sc_names[0] }{opts};
                 my @opts = sort {
                     (my $a_without_dash = $a) =~ s/^-+//;
                     (my $b_without_dash = $b) =~ s/^-+//;
                     lc($a) cmp lc($b);
                 } grep {$check_common_arg->($opts, $_)} keys %$opts;
-                push @content, "=head2 Common options\n\n";
-                push @content, "=over\n\n";
+                push @sectpod, "=head2 Common options\n\n";
+                push @sectpod, "=over\n\n";
                 for (@opts) {
-                    push @content, _fmt_opt($_, $opts->{$_});
+                    push @sectpod, _fmt_opt($_, $opts->{$_});
                 }
-                push @content, "=back\n\n";
+                push @sectpod, "=back\n\n";
             }
 
             # display each subcommand's options (without the options tagged as
@@ -453,12 +539,12 @@ sub gen_pod_for_pericmd_script {
                     lc($a) cmp lc($b);
                 } grep {!$check_common_arg->($opts, $_)} keys %$opts;
                 next unless @opts;
-                push @content, "=head2 Options for subcommand $sc_name\n\n";
-                push @content, "=over\n\n";
+                push @sectpod, "=head2 Options for subcommand $sc_name\n\n";
+                push @sectpod, "=over\n\n";
                 for (@opts) {
-                    push @content, _fmt_opt($_, $opts->{$_});
+                    push @sectpod, _fmt_opt($_, $opts->{$_});
                 }
-                push @content, "=back\n\n";
+                push @sectpod, "=back\n\n";
             }
         } else {
             my $opts = $clidocdata{''}{opts};
@@ -474,7 +560,7 @@ sub gen_pod_for_pericmd_script {
                 ($cats_spec->{$a}{order} // 50) <=> ($cats_spec->{$b}{order} // 50)
                     || $a cmp $b }
                              keys %options_by_cat) {
-                push @content, "=head2 $cat\n\n"
+                push @sectpod, "=head2 $cat\n\n"
                     unless keys(%options_by_cat) == 1;
 
                 my @opts = sort {
@@ -482,42 +568,25 @@ sub gen_pod_for_pericmd_script {
                     (my $b_without_dash = $b) =~ s/^-+//;
                     lc($a) cmp lc($b);
                 } @{ $options_by_cat{$cat} };
-                push @content, "=over\n\n";
+                push @sectpod, "=over\n\n";
                 for (@opts) {
-                    push @content, _fmt_opt($_, $opts->{$_});
+                    push @sectpod, _fmt_opt($_, $opts->{$_});
                 }
-                push @content, "=back\n\n";
+                push @sectpod, "=back\n\n";
             }
         }
 
-        $self->add_text_to_section(
-            $document, join('', @content), 'OPTIONS',
-            {
-                ignore => 1,
-                after_section => [
-                    'SUBCOMMANDS',
-                    'DESCRIPTION',
-                ],
-                # make sure we don't put it too below
-                before_section => [
-                    'COMPLETION',
-                    'ENVIRONMENT',
-                    'CONFIGURATION FILE',
-                    'HOMEPAGE',
-                    'SEE ALSO',
-                    'AUTHOR',
-                ],
-            });
-        $modified++;
+        push @{ $resmeta->{'func.sections'} }, {name=>'OPTIONS', content=>\@sectpod};
+        push @pod, "=head1 OPTIONS\n\n", @sectpod;
     }
 
-    # insert ENVIRONMENT section
+    # section: ENVIRONMENT
     {
         # workaround because currently the dumped object does not contain all
         # attributes in the hash (Moo/Mo issue?), we need to access the
         # attribute accessor method first to get them recorded in the hash. this
         # will be fixed in the dump module in the future.
-        local $0 = $filename;
+        local $0 = $args{script} if defined $args{script};
         local @INC = ("lib", @INC);
         eval "use " . ref($cli) . "()";
         die if $@;
@@ -531,32 +600,21 @@ sub gen_pod_for_pericmd_script {
             $env_name =~ s/\W+/_/g;
         }
 
-        my @content;
-        push @content, "=head2 ", $env_name, " => str\n\n";
-        push @content, "Specify additional command-line options\n\n";
+        my @sectpod;
+        push @sectpod, "=head2 ", $env_name, " => str\n\n";
+        push @sectpod, "Specify additional command-line options\n\n";
 
-        $self->add_text_to_section(
-            $document, join('', @content), 'ENVIRONMENT',
-            {
-                after_section => [
-                    'OPTIONS',
-                ],
-                # make sure we don't put it too below
-                before_section => [
-                    'HOMEPAGE',
-                    'SEE ALSO',
-                ],
-            });
-        $modified++;
+        push @{ $resmeta->{'func.sections'} }, {name=>'ENVIRONMENT', content=>\@sectpod};
+        push @pod, "=head1 ENVIRONMENT\n\n", @sectpod;
     }
 
-    # insert CONFIGURATION FILE & FILES sections
+    # sections: CONFIGURATION FILE & FILES
     {
         # workaround because currently the dumped object does not contain all
         # attributes in the hash (Moo/Mo issue?), we need to access the
         # attribute accessor method first to get them recorded in the hash. this
         # will be fixed in the dump module in the future.
-        local $0 = $filename;
+        local $0 = $args{script} if defined $args{script};
         local @INC = ("lib", @INC);
         eval "use " . ref($cli) . "()";
         die if $@;
@@ -568,9 +626,9 @@ sub gen_pod_for_pericmd_script {
         my @files;
         my @sections;
 
-        # FILES section
+        # section: FILES
         {
-            my @content;
+            my @sectpod;
             if (my $cfns = $cli->config_filename) {
                 for my $cfn (ref($cfns) eq 'ARRAY' ? @$cfns : $cfns) {
                     if (ref($cfn) eq 'HASH') {
@@ -592,27 +650,22 @@ sub gen_pod_for_pericmd_script {
                 for my $cfn (@$config_filenames) {
                     my $p = "$config_dir/$cfn->{filename}";
                     push @files, $p;
-                    push @sections, $cfn->{section};
-                    push @content, "$p\n\n";
+                    push @sectpod, $cfn->{section} // '';
+                    push @sectpod, "$p\n\n";
                 }
             }
 
-            $self->add_text_to_section(
-                $document, join('', @content), 'FILES',
-                {
-                    after_section => 'ENVIRONMENT',
-                    # make sure we don't put it too below
-                    before_section => [
-                        'SEE ALSO',
-                    ],
-                });
+            push @{ $resmeta->{'func.sections'} }, {name=>'FILES', content=>\@sectpod};
+            push @pod, "=head1 FILES\n\n", @sectpod;
         }
 
-        # CONFIGURATION FILE section
+        # section: CONFIGURATION FILE
         {
-            my @content;
+            use experimental 'smartmatch';
 
-            push @content, (
+            my @sectpod;
+
+            push @sectpod, (
                 "This script can read configuration files. Configuration files are in the format of L<IOD>, which is basically INI with some extra features.\n\n",
 
                 "By default, these names are searched for configuration filenames (can be changed using C<--config-path>): ",
@@ -654,51 +707,44 @@ sub gen_pod_for_pericmd_script {
                 # first list the options tagged with 'common' and common options
                 # (non-function argument options, like --format or --log-level)
                 # which are supposed to be the same across subcommands.
-                push @content, "=head2 Common for all subcommands\n\n";
-                my $param2opts = $self->_list_config_params(
+                push @sectpod, "=head2 Common for all subcommands\n\n";
+                my $param2opts = _list_config_params(
                     $clidocdata{$sc_names[0]},
                     sub { 'common' ~~ @{ $_[0]->{tags} // []} || !$_[0]->{arg} });
                 for (sort keys %$param2opts) {
-                    push @content, " $_ (see $param2opts->{$_})\n";
+                    push @sectpod, " $_ (see $param2opts->{$_})\n";
                 }
-                push @content, "\n";
+                push @sectpod, "\n";
 
                 # now list the options for each subcommand
                 for my $sc_name (@sc_names) {
                     my $sc_spec = $cli->{subcommands}{$sc_name};
                     next if $sc_spec->{is_alias};
-                    push @content, "=head2 Configuration for subcommand '$sc_name'\n\n";
-                    $param2opts = $self->_list_config_params(
+                    push @sectpod, "=head2 Configuration for subcommand '$sc_name'\n\n";
+                    $param2opts = _list_config_params(
                         $clidocdata{$sc_name},
                         sub { !('common' ~~ @{ $_[0]->{tags} // []}) && $_[0]->{arg} });
                     for (sort keys %$param2opts) {
-                        push @content, " $_ (see $param2opts->{$_})\n";
+                        push @sectpod, " $_ (see $param2opts->{$_})\n";
                     }
-                    push @content, "\n";
+                    push @sectpod, "\n";
                 }
             } else {
-                my $param2opts = $self->_list_config_params($clidocdata{''});
+                my $param2opts = _list_config_params($clidocdata{''});
                 for (sort keys %$param2opts) {
-                    push @content, " $_ (see $param2opts->{$_})\n";
+                    push @sectpod, " $_ (see $param2opts->{$_})\n";
                 }
-                push @content, "\n";
+                push @sectpod, "\n";
             }
 
-            $self->add_text_to_section(
-                $document, join('', @content), 'CONFIGURATION FILE',
-                {
-                    before_section=>[
-                        'FILES',
-                    ],
-                });
+            push @{ $resmeta->{'func.sections'} }, {name=>'CONFIGURATION FILE', content=>\@sectpod, ignore=>1};
+            push @pod, "=head1 CONFIGURATION FILE\n\n", @sectpod;
         }
-
-        $modified++;
     }
 
-    # insert SEE ALSO section
+    # section: SEE ALSO
     {
-        my @content;
+        my @sectpod;
 
         my %seen_urls;
         for my $sc_name (sort keys %clidocdata) {
@@ -709,33 +755,28 @@ sub gen_pod_for_pericmd_script {
                 my $url = $link->{url};
                 next if $seen_urls{$url}++;
                 if ($url =~ s!^(pm|pod|prog):(//?)?!!) {
-                    push @content, "L<$url>.";
+                    push @sectpod, "L<$url>.";
                 } else {
-                    push @content, "L<$url>.";
+                    push @sectpod, "L<$url>.";
                 }
                 if ($link->{summary}) {
-                    push @content, " $link->{summary}";
-                    push @content, "." unless $link->{summary} =~ /\.$/;
+                    push @sectpod, " $link->{summary}";
+                    push @sectpod, "." unless $link->{summary} =~ /\.$/;
                 }
-                push @content, " " .
+                push @sectpod, " " .
                     Markdown::To::POD::markdown_to_pod($link->{description})
                       if $link->{description};
-                push @content, "\n\n";
+                push @sectpod, "\n\n";
             }
         }
 
-        last unless @content;
+        last unless @sectpod;
 
-        $self->add_text_to_section(
-            $document, join('', @content), 'SEE ALSO',
-            {
-            });
-        $modified++;
+        push @{ $resmeta->{'func.sections'} }, {name=>'SEE ALSO', content=>\@sectpod};
+        push @pod, "=head1 SEE ALSO\n\n", @sectpod;
     }
 
-    if ($modified) {
-        $self->log(["added POD sections from Rinci metadata for script '%s'", $filename]);
-    }
+    [200, "OK", join("", @pod), $resmeta];
 }
 
 1;
