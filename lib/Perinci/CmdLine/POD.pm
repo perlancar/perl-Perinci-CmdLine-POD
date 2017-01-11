@@ -580,34 +580,6 @@ sub gen_pod_for_pericmd_script {
         push @pod, "=head1 OPTIONS\n\n", @sectpod;
     }
 
-    # section: ENVIRONMENT
-    {
-        # workaround because currently the dumped object does not contain all
-        # attributes in the hash (Moo/Mo issue?), we need to access the
-        # attribute accessor method first to get them recorded in the hash. this
-        # will be fixed in the dump module in the future.
-        local $0 = $args{script} if defined $args{script};
-        local @INC = ("lib", @INC);
-        eval "use " . ref($cli) . "()";
-        die if $@;
-
-        last unless $cli->read_env;
-        #$self->log_debug(["skipped file %s (script does not read env)", $filename]);
-
-        my $env_name = $cli->env_name;
-        if (!$env_name) {
-            $env_name = uc($prog);
-            $env_name =~ s/\W+/_/g;
-        }
-
-        my @sectpod;
-        push @sectpod, "=head2 ", $env_name, " => str\n\n";
-        push @sectpod, "Specify additional command-line options\n\n";
-
-        push @{ $resmeta->{'func.sections'} }, {name=>'ENVIRONMENT', content=>join("", @sectpod)};
-        push @pod, "=head1 ENVIRONMENT\n\n", @sectpod;
-    }
-
     # sections: CONFIGURATION FILE & FILES
     {
         # workaround because currently the dumped object does not contain all
@@ -740,6 +712,34 @@ sub gen_pod_for_pericmd_script {
 
         push @{ $resmeta->{'func.sections'} }, {name=>'FILES', content=>join("", @files_sectpod)};
         push @pod, "=head1 FILES\n\n", @files_sectpod;
+    }
+
+    # section: ENVIRONMENT
+    {
+        # workaround because currently the dumped object does not contain all
+        # attributes in the hash (Moo/Mo issue?), we need to access the
+        # attribute accessor method first to get them recorded in the hash. this
+        # will be fixed in the dump module in the future.
+        local $0 = $args{script} if defined $args{script};
+        local @INC = ("lib", @INC);
+        eval "use " . ref($cli) . "()";
+        die if $@;
+
+        last unless $cli->read_env;
+        #$self->log_debug(["skipped file %s (script does not read env)", $filename]);
+
+        my $env_name = $cli->env_name;
+        if (!$env_name) {
+            $env_name = uc($prog);
+            $env_name =~ s/\W+/_/g;
+        }
+
+        my @sectpod;
+        push @sectpod, "=head2 ", $env_name, " => str\n\n";
+        push @sectpod, "Specify additional command-line options\n\n";
+
+        push @{ $resmeta->{'func.sections'} }, {name=>'ENVIRONMENT', content=>join("", @sectpod)};
+        push @pod, "=head1 ENVIRONMENT\n\n", @sectpod;
     }
 
     # section: SEE ALSO
