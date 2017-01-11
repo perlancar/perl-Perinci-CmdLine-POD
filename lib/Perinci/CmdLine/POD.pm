@@ -627,8 +627,8 @@ sub gen_pod_for_pericmd_script {
         my @sections;
 
         # section: FILES
+        my @files_sectpod;
         {
-            my @sectpod;
             if (my $cfns = $cli->config_filename) {
                 for my $cfn (ref($cfns) eq 'ARRAY' ? @$cfns : $cfns) {
                     if (ref($cfn) eq 'HASH') {
@@ -650,13 +650,10 @@ sub gen_pod_for_pericmd_script {
                 for my $cfn (@$config_filenames) {
                     my $p = "$config_dir/$cfn->{filename}";
                     push @files, $p;
-                    push @sectpod, $cfn->{section} // '';
-                    push @sectpod, "$p\n\n";
+                    push @files_sectpod, $cfn->{section} // '';
+                    push @files_sectpod, "$p\n\n";
                 }
             }
-
-            push @{ $resmeta->{'func.sections'} }, {name=>'FILES', content=>join("", @sectpod)};
-            push @pod, "=head1 FILES\n\n", @sectpod;
         }
 
         # section: CONFIGURATION FILE
@@ -740,6 +737,9 @@ sub gen_pod_for_pericmd_script {
             push @{ $resmeta->{'func.sections'} }, {name=>'CONFIGURATION FILE', content=>join("", @sectpod), ignore=>1};
             push @pod, "=head1 CONFIGURATION FILE\n\n", @sectpod;
         }
+
+        push @{ $resmeta->{'func.sections'} }, {name=>'FILES', content=>join("", @files_sectpod)};
+        push @pod, "=head1 FILES\n\n", @files_sectpod;
     }
 
     # section: SEE ALSO
