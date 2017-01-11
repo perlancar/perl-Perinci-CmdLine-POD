@@ -178,6 +178,15 @@ _
             schema => ['array*', of=>'dirname*'],
             tags => ['category:input'],
         },
+        completer_script => {
+            summary => 'Script name for shell completion',
+            schema => ['str*'],
+            description => <<'_',
+
+A special value of `:self` means this script can complete itself.
+
+_
+        },
     },
     args_rels => {
         req_one => [qw/script url/],
@@ -220,6 +229,8 @@ sub gen_pod_for_pericmd_script {
         );
     }
 
+    # script has its metadata in its main:: instead of from a module, so let's
+    # put it there
     local %main::SPEC = %{ $dump_res->[3]{'func.meta'} }
         if $dump_res->[3]{'func.meta'};
 
@@ -284,10 +295,10 @@ sub gen_pod_for_pericmd_script {
     };
     my @pod;
 
-    my $prog = $args{program_name} // $cli->{program_name};
-    if (!$prog && defined $args{script}) {
-        $prog = $args{script};
-        $prog =~ s!.+/!!;
+    my $program_name = $args{program_name} // $cli->{program_name};
+    if (!$program_name && defined $args{script}) {
+        $program_name = $args{script};
+        $program_name =~ s!.+/!!;
     }
     my $summary = $args{summary} // $cli->{summary} //
         $metas{''}{summary} // '(no summary)';
@@ -295,7 +306,7 @@ sub gen_pod_for_pericmd_script {
     # section: NAME
     {
         my @sectpod;
-        push @sectpod, "$prog - $summary\n\n";
+        push @sectpod, "$program_name - $summary\n\n";
         push @{ $resmeta->{'func.sections'} }, {name=>'NAME', content=>join("", @sectpod), ignore=>1};
         push @pod, "=head1 NAME\n\n", @sectpod;
     }
@@ -319,13 +330,13 @@ sub gen_pod_for_pericmd_script {
             for my $sc_name (sort keys %clidocdata) {
                 next unless length $sc_name;
                 my $usage = $clidocdata{$sc_name}->{usage_line};
-                $usage =~ s/\[\[prog\]\]/$prog $sc_name/;
+                $usage =~ s/\[\[prog\]\]/$program_name $sc_name/;
                 push @sectpod, " % $usage\n";
             }
             push @sectpod, "\n";
         } else {
             my $usage = $clidocdata{''}->{usage_line};
-            $usage =~ s/\[\[prog\]\]/$prog/;
+            $usage =~ s/\[\[prog\]\]/$program_name/;
             push @sectpod, " % $usage\n\n";
         }
 
@@ -348,7 +359,7 @@ sub gen_pod_for_pericmd_script {
                 my $meta = $metas{ $eg->{_sc_name} };
                 push @sectpod, "$eg->{summary}:\n\n" if $eg->{summary};
                 my $cmdline = $eg->{cmdline};
-                $cmdline =~ s/\[\[prog\]\]/$prog/;
+                $cmdline =~ s/\[\[prog\]\]/$program_name/;
                 push @sectpod, " % $cmdline\n";
 
                 my $show_result;
@@ -580,6 +591,73 @@ sub gen_pod_for_pericmd_script {
         push @pod, "=head1 OPTIONS\n\n", @sectpod;
     }
 
+    # section: COMPLETION
+    {
+        my $completer_name = $args{completer_script};
+        last unless defined $completer_name;
+        my $self_completing;
+        if ($completer_name eq ':self') {
+            $self_completing = 1;
+            $completer_name = $program_name;
+        }
+
+        my @sectpod;
+
+        my $h2 = "=head2"; # to avoid confusing Pod::Weaver
+
+        if ($self_completing) {
+            push @sectpod, <<_;
+This script has shell tab completion capability with support for several
+shells.
+
+_
+        } else {
+            push @sectpod, <<_;
+The script comes with a companion shell completer script (L<$completer_name>)
+for this script.
+
+_
+        }
+
+        push @sectpod, <<_;
+$h2 bash
+
+To activate bash completion for this script, put:
+
+ complete -C $completer_name $program_name
+
+in your bash startup (e.g. F<~/.bashrc>). Your next shell session will then
+recognize tab completion for the command. Or, you can also directly execute the
+line above in your shell to activate immediately.
+
+It is recommended, however, that you install L<shcompgen> which allows you to
+activate completion scripts for several kinds of scripts on multiple shells.
+Some CPAN distributions (those that are built with
+L<Dist::Zilla::Plugin::GenShellCompletion>) will even automatically enable shell
+completion for their included scripts (using L<shcompgen>) at installation time,
+so you can immediately have tab completion.
+
+$h2 tcsh
+
+To activate tcsh completion for this script, put:
+
+ complete $program_name 'p/*/`$program_name`/'
+
+in your tcsh startup (e.g. F<~/.tcshrc>). Your next shell session will then
+recognize tab completion for the command. Or, you can also directly execute the
+line above in your shell to activate immediately.
+
+It is also recommended to install L<shcompgen> (see above).
+
+$h2 other shells
+
+For fish and zsh, install L<shcompgen> as described above.
+_
+
+        push @{ $resmeta->{'func.sections'} }, {name=>'COMPLETION', content=>join("", @sectpod)};
+        push @pod, "=head1 COMPLETION\n\n", @sectpod;
+    }
+
     # sections: CONFIGURATION FILE & FILES
     {
         # workaround because currently the dumped object does not contain all
@@ -614,7 +692,7 @@ sub gen_pod_for_pericmd_script {
                     {filename => $cli->program_name . ".conf"};
             } else {
                 push @$config_filenames,
-                    {filename => $prog . ".conf"};
+                    {filename => $program_name . ".conf"};
             }
             $config_dirs = $cli->{config_dirs} // ['~/.config', '~', '/etc'];
 
@@ -730,7 +808,7 @@ sub gen_pod_for_pericmd_script {
 
         my $env_name = $cli->env_name;
         if (!$env_name) {
-            $env_name = uc($prog);
+            $env_name = uc($program_name);
             $env_name =~ s/\W+/_/g;
         }
 
