@@ -296,7 +296,7 @@ sub gen_pod_for_pericmd_script {
     {
         my @sectpod;
         push @sectpod, "$prog - $summary\n\n";
-        push @{ $resmeta->{'func.sections'} }, {name=>'NAME', content=>\@sectpod, ignore=>1};
+        push @{ $resmeta->{'func.sections'} }, {name=>'NAME', content=>join("", @sectpod), ignore=>1};
         push @pod, "=head1 NAME\n\n", @sectpod;
     }
 
@@ -307,7 +307,7 @@ sub gen_pod_for_pericmd_script {
         my @sectpod;
         push @sectpod, "$version\n\n";
         $resmeta->{'func.section.version'} = \@sectpod;
-        push @{ $resmeta->{'func.sections'} }, {name=>'VERSION', content=>\@sectpod, ignore=>1};
+        push @{ $resmeta->{'func.sections'} }, {name=>'VERSION', content=>join("", @sectpod), ignore=>1};
         push @pod, "=head1 VERSION\n\n", @sectpod;
     }
 
@@ -416,7 +416,7 @@ sub gen_pod_for_pericmd_script {
             }
         }
 
-        push @{ $resmeta->{'func.sections'} }, {name=>'SYNOPSIS', content=>\@sectpod, ignore=>1};
+        push @{ $resmeta->{'func.sections'} }, {name=>'SYNOPSIS', content=>join("", @sectpod), ignore=>1};
         push @pod, "=head1 SYNOPSIS\n\n", @sectpod;
     }
 
@@ -431,7 +431,7 @@ sub gen_pod_for_pericmd_script {
             Markdown::To::POD::markdown_to_pod($metas{''}{description});
         push @sectpod, "\n\n";
 
-        push @{ $resmeta->{'func.sections'} }, {name=>'DESCRIPTION', content=>\@sectpod, ignore=>1};
+        push @{ $resmeta->{'func.sections'} }, {name=>'DESCRIPTION', content=>join("", @sectpod), ignore=>1};
         push @pod, "=head1 DESCRIPTION\n\n", @sectpod;
     }
 
@@ -474,7 +474,7 @@ sub gen_pod_for_pericmd_script {
             }
         }
 
-        push @{ $resmeta->{'func.sections'} }, {name=>'SUBCOMMANDS', content=>\@sectpod, ignore=>1};
+        push @{ $resmeta->{'func.sections'} }, {name=>'SUBCOMMANDS', content=>join("", @sectpod), ignore=>1};
         push @pod, "=head1 SUBCOMMANDS\n\n", @sectpod;
     }
 
@@ -576,7 +576,7 @@ sub gen_pod_for_pericmd_script {
             }
         }
 
-        push @{ $resmeta->{'func.sections'} }, {name=>'OPTIONS', content=>\@sectpod};
+        push @{ $resmeta->{'func.sections'} }, {name=>'OPTIONS', content=>join("", @sectpod)};
         push @pod, "=head1 OPTIONS\n\n", @sectpod;
     }
 
@@ -604,7 +604,7 @@ sub gen_pod_for_pericmd_script {
         push @sectpod, "=head2 ", $env_name, " => str\n\n";
         push @sectpod, "Specify additional command-line options\n\n";
 
-        push @{ $resmeta->{'func.sections'} }, {name=>'ENVIRONMENT', content=>\@sectpod};
+        push @{ $resmeta->{'func.sections'} }, {name=>'ENVIRONMENT', content=>join("", @sectpod)};
         push @pod, "=head1 ENVIRONMENT\n\n", @sectpod;
     }
 
@@ -655,7 +655,7 @@ sub gen_pod_for_pericmd_script {
                 }
             }
 
-            push @{ $resmeta->{'func.sections'} }, {name=>'FILES', content=>\@sectpod};
+            push @{ $resmeta->{'func.sections'} }, {name=>'FILES', content=>join("", @sectpod)};
             push @pod, "=head1 FILES\n\n", @sectpod;
         }
 
@@ -737,7 +737,7 @@ sub gen_pod_for_pericmd_script {
                 push @sectpod, "\n";
             }
 
-            push @{ $resmeta->{'func.sections'} }, {name=>'CONFIGURATION FILE', content=>\@sectpod, ignore=>1};
+            push @{ $resmeta->{'func.sections'} }, {name=>'CONFIGURATION FILE', content=>join("", @sectpod), ignore=>1};
             push @pod, "=head1 CONFIGURATION FILE\n\n", @sectpod;
         }
     }
@@ -772,7 +772,7 @@ sub gen_pod_for_pericmd_script {
 
         last unless @sectpod;
 
-        push @{ $resmeta->{'func.sections'} }, {name=>'SEE ALSO', content=>\@sectpod};
+        push @{ $resmeta->{'func.sections'} }, {name=>'SEE ALSO', content=>join("", @sectpod)};
         push @pod, "=head1 SEE ALSO\n\n", @sectpod;
     }
 
