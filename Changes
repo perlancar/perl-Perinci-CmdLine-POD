@@ -1,3 +1,12 @@
+0.003   2017-01-11 (PERLANCAR)
+
+	- Generate COMPLETION section.
+
+	- Tweak: put ENVIRONMENT section after CONFIGURATION FILE.
+
+	- Tweak: put FILES section after CONFIGURATION FILE.
+
+
 0.002   2017-01-11 (PERLANCAR)
 
 	- [Incompatible change] Return each content section as string, not
