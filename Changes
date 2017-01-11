@@ -1,3 +1,9 @@
+0.002   2017-01-11 (PERLANCAR)
+
+	- [Incompatible change] Return each content section as string, not
+	  array of strings.
+
+
 0.001   2017-01-10 (PERLANCAR)
 
          - First release.
