@@ -479,6 +479,7 @@ sub gen_pod_for_pericmd_script {
 
             my $description = $sc_spec->{description} // $meta->{description};
             if ($description) {
+                require Markdown::To::POD;
                 push @sectpod,
                     Markdown::To::POD::markdown_to_pod($description);
                 push @sectpod, "\n\n";
@@ -841,6 +842,7 @@ _
                     push @sectpod, " $link->{summary}";
                     push @sectpod, "." unless $link->{summary} =~ /\.$/;
                 }
+                require Markdown::To::POD;
                 push @sectpod, " " .
                     Markdown::To::POD::markdown_to_pod($link->{description})
                       if $link->{description};
