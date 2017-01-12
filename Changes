@@ -1,3 +1,8 @@
+0.004   2017-01-12 (PERLANCAR)
+
+	- [Bugfix] Forgot to require Markdown::To::POD in two blocks.
+
+
 0.003   2017-01-11 (PERLANCAR)
 
 	- Generate COMPLETION section.
