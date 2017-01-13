@@ -185,6 +185,9 @@ _
 
 A special value of `:self` means this script can complete itself.
 
+Without specifying this option, the COMPLETION POD section will not be
+generated.
+
 _
         },
     },
