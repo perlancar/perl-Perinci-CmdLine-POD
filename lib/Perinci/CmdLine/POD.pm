@@ -668,7 +668,7 @@ _
         # attributes in the hash (Moo/Mo issue?), we need to access the
         # attribute accessor method first to get them recorded in the hash. this
         # will be fixed in the dump module in the future.
-        local $0 = $args{script} if defined $args{script};
+        local $0 = $program_name;
         local @INC = ("lib", @INC);
         eval "use " . ref($cli) . "()";
         die if $@;
@@ -802,7 +802,7 @@ _
         # attributes in the hash (Moo/Mo issue?), we need to access the
         # attribute accessor method first to get them recorded in the hash. this
         # will be fixed in the dump module in the future.
-        local $0 = $args{script} if defined $args{script};
+        local $0 = $program_name;
         local @INC = ("lib", @INC);
         eval "use " . ref($cli) . "()";
         die if $@;
