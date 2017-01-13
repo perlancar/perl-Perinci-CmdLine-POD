@@ -1,3 +1,9 @@
+0.005   2017-01-13 (PERLANCAR)
+
+	- [Bugfix] Set the correct program name to generate the correct
+	  default env name and default config filenames.
+
+
 0.004   2017-01-12 (PERLANCAR)
 
 	- [Bugfix] Forgot to require Markdown::To::POD in two blocks.
