@@ -655,6 +655,7 @@ It is also recommended to install L<shcompgen> (see above).
 $h2 other shells
 
 For fish and zsh, install L<shcompgen> as described above.
+
 _
 
         push @{ $resmeta->{'func.sections'} }, {name=>'COMPLETION', content=>join("", @sectpod)};
