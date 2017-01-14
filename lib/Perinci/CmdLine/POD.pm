@@ -206,7 +206,7 @@ sub gen_pod_for_pericmd_script {
     my ($cli, $dump_res);
     if (defined $args{script}) {
         require Perinci::CmdLine::Dump;
-        my $dump_res = Perinci::CmdLine::Dump::dump_pericmd_script(
+        $dump_res = Perinci::CmdLine::Dump::dump_pericmd_script(
             filename => $args{script},
         );
         return $dump_res unless $dump_res->[0] == 200;
@@ -247,13 +247,12 @@ sub gen_pod_for_pericmd_script {
 
         my $url = $cli->{url};
         $urls{''} = $url;
-        unless ($metas{''}) {
-            my $res = $pa->request(meta => $url);
-            die "Can't meta $url: $res->[0] - $res->[1]"
-                unless $res->[0] == 200;
-            $metas{''} = $res->[2];
-        }
-        my $res = Perinci::Sub::To::CLIDocData::gen_cli_doc_data_from_meta(
+        my $res = $pa->request(meta => $url);
+        die "Can't meta $url: $res->[0] - $res->[1]"
+            unless $res->[0] == 200;
+        $metas{''} = $res->[2];
+
+        $res = Perinci::Sub::To::CLIDocData::gen_cli_doc_data_from_meta(
             meta => $metas{''},
             meta_is_normalized => 0, # because riap client is specifically set not to normalize
             common_opts  => $cli->{common_opts},
