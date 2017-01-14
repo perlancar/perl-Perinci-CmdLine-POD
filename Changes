@@ -1,3 +1,9 @@
+0.006   2017-01-13 (PERLANCAR)
+
+	- [Bugfix] Fixes bug which broke generating POD for scripts where the
+          Rinci metadata is put inside them.
+
+
 0.005   2017-01-13 (PERLANCAR)
 
 	- [Bugfix] Set the correct program name to generate the correct
