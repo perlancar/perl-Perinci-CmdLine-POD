@@ -191,6 +191,7 @@ _
             schema => ['array*', of=>'dirname*'],
             tags => ['category:script-specification'],
         },
+
         completer_script => {
             summary => 'Script name for shell completion',
             schema => ['str*'],
@@ -204,6 +205,32 @@ generated.
 _
             tags => ['category:completion-specification'],
         },
+
+        gen_subcommands => {
+            summary => 'Whether to generate POD for subcommands',
+            'summary.alt.bool.not' => "Do not generate POD for subcommands",
+            schema => 'bool*',
+            default => 1,
+            description => <<'_',
+
+If you want to generate separate POD/manpage for each subcommand, you can use
+this option for the main CLI POD, then generate each subcommand's POD with the
+`--gen-subcommand=SUBCOMMAND_NAME` option.
+
+_
+            tags => ['category:output'],
+        },
+        gen_subcommand => {
+            summary => 'Only generate POD for this subcommand',
+            schema => 'str*',
+            description => <<'_',
+
+See `--gen-subcommands`.
+
+_
+            tags => ['category:output'],
+        },
+
     },
     args_rels => {
         req_one => [qw/script url/],
@@ -306,6 +333,13 @@ sub gen_pod_for_pericmd_script {
         }
     }
 
+    my $gen_sc = $args{gen_subcommand};
+    if (defined $gen_sc) {
+        return [400, "Unknown subcommand '$gen_sc'"]
+            unless $metas{$gen_sc};
+    }
+    my $gen_scs = $args{gen_subcommands} // 1;
+
     my $resmeta = {
         'func.sections' => [],
     };
@@ -322,7 +356,12 @@ sub gen_pod_for_pericmd_script {
     # section: NAME
     {
         my @sectpod;
-        push @sectpod, "$program_name - $summary\n\n";
+        if (defined $gen_sc) {
+            my $sc_summary = $metas{$gen_sc}{summary} // '(no summary)';
+            push @sectpod, "$program_name-$gen_sc - $sc_summary\n\n";
+        } else {
+            push @sectpod, "$program_name - $summary\n\n";
+        }
         push @{ $resmeta->{'func.sections'} }, {name=>'NAME', content=>join("", @sectpod), ignore=>1};
         push @pod, "=head1 NAME\n\n", @sectpod;
     }
@@ -332,7 +371,11 @@ sub gen_pod_for_pericmd_script {
     # section: VERSION
     {
         my @sectpod;
-        push @sectpod, "$version\n\n";
+        if (defined $args{gen_subcommand}) {
+            push @sectpod, "Part of L<$program_name> version $version\n\n";
+        } else {
+            push @sectpod, "$version\n\n";
+        }
         $resmeta->{'func.section.version'} = \@sectpod;
         push @{ $resmeta->{'func.sections'} }, {name=>'VERSION', content=>join("", @sectpod), ignore=>1};
         push @pod, "=head1 VERSION\n\n", @sectpod;
@@ -343,11 +386,16 @@ sub gen_pod_for_pericmd_script {
         my @sectpod;
         push @sectpod, "Usage:\n\n";
         if ($cli->{subcommands}) {
-            for my $sc_name (sort keys %clidocdata) {
-                next unless length $sc_name;
-                my $usage = $clidocdata{$sc_name}->{usage_line};
-                $usage =~ s/\[\[prog\]\]/$program_name $sc_name/;
-                push @sectpod, " % $usage\n";
+            if ($gen_scs) {
+                for my $sc_name (sort keys %clidocdata) {
+                    next unless length $sc_name;
+                    if (defined $gen_sc) { next unless $sc_name eq $gen_sc }
+                    my $usage = $clidocdata{$sc_name}->{usage_line};
+                    $usage =~ s/\[\[prog\]\]/$program_name $sc_name/;
+                    push @sectpod, " % $usage\n";
+                }
+            } else {
+                push @sectpod, " % $program_name [options] [subcommand] [arg]...\n";
             }
             push @sectpod, "\n";
         } else {
@@ -359,6 +407,7 @@ sub gen_pod_for_pericmd_script {
         my @examples;
         for my $sc_name (sort keys %clidocdata) {
             next unless length $sc_name;
+            if (defined $gen_sc) { next unless $sc_name eq $gen_sc }
             my $i = 1;
             for my $eg (@{ $clidocdata{$sc_name}{examples} }) {
                 # add pointer to subcommand, we need it later to show result
@@ -449,13 +498,14 @@ sub gen_pod_for_pericmd_script {
 
     # section: DESCRIPTION
     {
-        last unless $metas{''}{description};
+        my $k = defined $gen_sc ? $gen_sc : '';
+        last unless $metas{$k}{description};
 
         require Markdown::To::POD;
 
         my @sectpod;
         push @sectpod,
-            Markdown::To::POD::markdown_to_pod($metas{''}{description});
+            Markdown::To::POD::markdown_to_pod($metas{$k}{description});
         push @sectpod, "\n\n";
 
         push @{ $resmeta->{'func.sections'} }, {name=>'DESCRIPTION', content=>join("", @sectpod), ignore=>1};
@@ -465,11 +515,15 @@ sub gen_pod_for_pericmd_script {
     # section: SUBCOMMANDS
     {
         last unless $cli->{subcommands};
+        last if defined $gen_sc;
 
         my @sectpod;
         my %sc_spec_refs; # key=ref address, val=first subcommand name
+
+        my $i = -1;
         for my $sc_name (sort keys %clidocdata) {
             next unless length $sc_name;
+            $i++;
             my $sc_spec = $cli->{subcommands}{$sc_name};
 
             my $spec_same_as;
@@ -479,28 +533,37 @@ sub gen_pod_for_pericmd_script {
                 $sc_spec_refs{"$sc_spec"} = $sc_name;
             }
 
-            my $meta = $metas{$sc_name};
-            push @sectpod, "=head2 B<$sc_name>\n\n";
+            if ($gen_scs) {
+                my $meta = $metas{$sc_name};
+                push @sectpod, "=head2 B<$sc_name>\n\n";
 
-            # assumed alias because spec has been seen before
-            if ($spec_same_as) {
-                push @sectpod, "Alias for C<$spec_same_as>.\n\n";
-                next;
+                # assumed alias because spec has been seen before
+                if ($spec_same_as) {
+                    push @sectpod, "Alias for C<$spec_same_as>.\n\n";
+                    next;
+                }
+
+                my $summary = $sc_spec->{summary} // $meta->{summary};
+                push @sectpod, "$summary.\n\n" if $summary;
+
+                next if $sc_spec->{is_alias};
+
+                my $description = $sc_spec->{description} // $meta->{description};
+                if ($description) {
+                    require Markdown::To::POD;
+                    push @sectpod,
+                        Markdown::To::POD::markdown_to_pod($description);
+                    push @sectpod, "\n\n";
+                }
+            } else {
+                unless ($i) {
+                    push @sectpod, "See each subcommand's documentation for more details, e.g. for the C<$sc_name> subcommand see L<$program_name-$sc_name>.\n\n";
+                    push @sectpod, "=over\n\n";
+                }
+                push @sectpod, "=item * $sc_name\n\n";
             }
-
-            my $summary = $sc_spec->{summary} // $meta->{summary};
-            push @sectpod, "$summary.\n\n" if $summary;
-
-            next if $sc_spec->{is_alias};
-
-            my $description = $sc_spec->{description} // $meta->{description};
-            if ($description) {
-                require Markdown::To::POD;
-                push @sectpod,
-                    Markdown::To::POD::markdown_to_pod($description);
-                push @sectpod, "\n\n";
-            }
-        }
+        } # for $sc_name
+        push @sectpod, "=back\n\n" unless $gen_scs;
 
         push @{ $resmeta->{'func.sections'} }, {name=>'SUBCOMMANDS', content=>join("", @sectpod), ignore=>1};
         push @pod, "=head1 SUBCOMMANDS\n\n", @sectpod;
@@ -512,8 +575,10 @@ sub gen_pod_for_pericmd_script {
     {
         my @sectpod;
         push @sectpod, "C<*> marks required options.\n\n";
-
-        if ($cli->{subcommands}) {
+        unless ($gen_scs) {
+            push @sectpod, "Each subcommand might accept additional options. See each subcommand's documentation for more details.\n\n";
+        }
+        if ($cli->{subcommands} && !defined $gen_sc) {
 
             use experimental 'smartmatch';
 
@@ -537,7 +602,7 @@ sub gen_pod_for_pericmd_script {
                     (my $b_without_dash = $b) =~ s/^-+//;
                     lc($a) cmp lc($b);
                 } grep {$check_common_arg->($opts, $_)} keys %$opts;
-                push @sectpod, "=head2 Common options\n\n";
+                push @sectpod, "=head2 Common options\n\n" if $gen_scs;
                 push @sectpod, "=over\n\n";
                 for (@opts) {
                     push @sectpod, _fmt_opt($_, $opts->{$_});
@@ -545,37 +610,40 @@ sub gen_pod_for_pericmd_script {
                 push @sectpod, "=back\n\n";
             }
 
-            # display each subcommand's options (without the options tagged as
-            # 'common')
-            my %sc_spec_refs;
-            for my $sc_name (@sc_names) {
-                my $sc_spec = $cli->{subcommands}{$sc_name};
+            if ($gen_scs) {
+                # display each subcommand's options (without the options tagged as
+                # 'common')
+                my %sc_spec_refs;
+                for my $sc_name (@sc_names) {
+                    my $sc_spec = $cli->{subcommands}{$sc_name};
 
-                my $spec_same_as;
-                if (defined $sc_spec_refs{"$sc_spec"}) {
-                    $spec_same_as = $sc_spec_refs{"$sc_spec"};
-                } else {
-                    $sc_spec_refs{"$sc_spec"} = $sc_name;
-                }
-                next if defined $spec_same_as;
-                next if $sc_spec->{is_alias};
+                    my $spec_same_as;
+                    if (defined $sc_spec_refs{"$sc_spec"}) {
+                        $spec_same_as = $sc_spec_refs{"$sc_spec"};
+                    } else {
+                        $sc_spec_refs{"$sc_spec"} = $sc_name;
+                    }
+                    next if defined $spec_same_as;
+                    next if $sc_spec->{is_alias};
 
-                my $opts = $clidocdata{$sc_name}{opts};
-                my @opts = sort {
-                    (my $a_without_dash = $a) =~ s/^-+//;
-                    (my $b_without_dash = $b) =~ s/^-+//;
-                    lc($a) cmp lc($b);
-                } grep {!$check_common_arg->($opts, $_)} keys %$opts;
-                next unless @opts;
-                push @sectpod, "=head2 Options for subcommand $sc_name\n\n";
-                push @sectpod, "=over\n\n";
-                for (@opts) {
-                    push @sectpod, _fmt_opt($_, $opts->{$_});
+                    my $opts = $clidocdata{$sc_name}{opts};
+                    my @opts = sort {
+                        (my $a_without_dash = $a) =~ s/^-+//;
+                        (my $b_without_dash = $b) =~ s/^-+//;
+                        lc($a) cmp lc($b);
+                    } grep {!$check_common_arg->($opts, $_)} keys %$opts;
+                    next unless @opts;
+                    push @sectpod, "=head2 Options for subcommand $sc_name\n\n";
+                    push @sectpod, "=over\n\n";
+                    for (@opts) {
+                        push @sectpod, _fmt_opt($_, $opts->{$_});
+                    }
+                    push @sectpod, "=back\n\n";
                 }
-                push @sectpod, "=back\n\n";
             }
         } else {
-            my $opts = $clidocdata{''}{opts};
+            my $k = defined $gen_sc ? $gen_sc : '';
+            my $opts = $clidocdata{$k}{opts};
             # find all the categories
             my %options_by_cat; # val=[options...]
             for my $optkey (keys %$opts) {
@@ -583,7 +651,7 @@ sub gen_pod_for_pericmd_script {
                     push @{ $options_by_cat{$cat} }, $optkey;
                 }
             }
-            my $cats_spec = $clidocdata{''}{option_categories};
+            my $cats_spec = $clidocdata{$k}{option_categories};
             for my $cat (sort {
                 ($cats_spec->{$a}{order} // 50) <=> ($cats_spec->{$b}{order} // 50)
                     || $a cmp $b }
@@ -678,6 +746,8 @@ _
 
     # sections: CONFIGURATION FILE & FILES
     {
+        last if defined $gen_sc;
+
         # workaround because currently the dumped object does not contain all
         # attributes in the hash (Moo/Mo issue?), we need to access the
         # attribute accessor method first to get them recorded in the hash. this
@@ -728,6 +798,8 @@ _
         {
             use experimental 'smartmatch';
 
+            last if defined $gen_sc;
+
             my @sectpod;
 
             push @sectpod, (
@@ -765,14 +837,14 @@ _
                 "If you only want a section to be read when an environment variable contains something: C<[env=HOSTNAME*=server ...]> or C<[SOMESECTION env=HOSTNAME*=server ...]>. ",
                 "Note that currently due to simplistic parsing, there must not be any whitespace in the value being compared because it marks the beginning of a new section filter or section name.\n\n",
 
-                "List of available configuration parameters:\n\n",
+                "List of available configuration parameters", ($gen_scs ? "" : " (note that each subcommand might have additional configuration parameter, refer to each subcommand's documentation for more details)"), ":\n\n",
             );
 
             if ($cli->{subcommands}) {
                 # first list the options tagged with 'common' and common options
                 # (non-function argument options, like --format or --log-level)
                 # which are supposed to be the same across subcommands.
-                push @sectpod, "=head2 Common for all subcommands\n\n";
+                push @sectpod, "=head2 Common for all subcommands\n\n" if $gen_scs;
                 my $param2opts = _list_config_params(
                     $clidocdata{$sc_names[0]},
                     sub { 'common' ~~ @{ $_[0]->{tags} // []} || !$_[0]->{arg} });
@@ -781,18 +853,20 @@ _
                 }
                 push @sectpod, "\n";
 
-                # now list the options for each subcommand
-                for my $sc_name (@sc_names) {
-                    my $sc_spec = $cli->{subcommands}{$sc_name};
-                    next if $sc_spec->{is_alias};
-                    push @sectpod, "=head2 Configuration for subcommand '$sc_name'\n\n";
-                    $param2opts = _list_config_params(
-                        $clidocdata{$sc_name},
-                        sub { !('common' ~~ @{ $_[0]->{tags} // []}) && $_[0]->{arg} });
-                    for (sort keys %$param2opts) {
-                        push @sectpod, " $_ (see $param2opts->{$_})\n";
+                if ($gen_scs) {
+                    # now list the options for each subcommand
+                    for my $sc_name (@sc_names) {
+                        my $sc_spec = $cli->{subcommands}{$sc_name};
+                        next if $sc_spec->{is_alias};
+                        push @sectpod, "=head2 Configuration for subcommand '$sc_name'\n\n";
+                        $param2opts = _list_config_params(
+                            $clidocdata{$sc_name},
+                            sub { !('common' ~~ @{ $_[0]->{tags} // []}) && $_[0]->{arg} });
+                        for (sort keys %$param2opts) {
+                            push @sectpod, " $_ (see $param2opts->{$_})\n";
+                        }
+                        push @sectpod, "\n";
                     }
-                    push @sectpod, "\n";
                 }
             } else {
                 my $param2opts = _list_config_params($clidocdata{''});
@@ -812,6 +886,8 @@ _
 
     # section: ENVIRONMENT
     {
+        last if defined $gen_sc;
+
         # workaround because currently the dumped object does not contain all
         # attributes in the hash (Moo/Mo issue?), we need to access the
         # attribute accessor method first to get them recorded in the hash. this
@@ -832,7 +908,7 @@ _
 
         my @sectpod;
         push @sectpod, "=head2 ", $env_name, " => str\n\n";
-        push @sectpod, "Specify additional command-line options\n\n";
+        push @sectpod, "Specify additional command-line options.\n\n";
 
         push @{ $resmeta->{'func.sections'} }, {name=>'ENVIRONMENT', content=>join("", @sectpod)};
         push @pod, "=head1 ENVIRONMENT\n\n", @sectpod;
