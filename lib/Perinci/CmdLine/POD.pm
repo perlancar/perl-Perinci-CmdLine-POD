@@ -115,68 +115,81 @@ _
         script => {
             summary => 'Path to script',
             schema => 'filename*',
-            tags => ['category:input'],
+            tags => ['category:script-source'],
         },
 
         url => {
+            summary => 'Set `url` attribute, see Perinci::CmdLine::Base for more details',
             schema => 'str*',
-            tags => ['category:input'],
+            tags => ['category:script-specification'],
         },
         program_name => {
+            summary => 'Set `program_name` attribute, see Perinci::CmdLine::Base',
             schema => 'str*',
-            tags => ['category:input'],
+            tags => ['category:script-specification'],
         },
         summary => {
+            summary => 'Set `summary` attribute, see Perinci::CmdLine::Base',
             schema => 'str*',
-            tags => ['category:input'],
+            tags => ['category:script-specification'],
         },
         common_opts => {
+            summary => 'Set `common_opts` attribute, see Perinci::CmdLine::Base',
             schema => 'hash*',
-            tags => ['category:input'],
+            tags => ['category:script-specification'],
         },
         subcommands => {
+            summary => 'Set `subcommands` attribute, see Perinci::CmdLine::Base',
             schema => ['hash*', of=>'hash*'],
-            tags => ['category:input'],
+            tags => ['category:script-specification'],
         },
         default_subcommand => {
+            summary => 'Set `default_subcommand` attribute, see Perinci::CmdLine::Base',
             schema => 'str*',
-            tags => ['category:input'],
+            tags => ['category:script-specification'],
         },
         per_arg_json => {
+            summary => 'Set `per_arg_json` attribute, see Perinci::CmdLine::Base',
             schema => ['bool*', is=>1],
             default => 1,
-            tags => ['category:input'],
+            tags => ['category:script-specification'],
         },
         per_arg_yaml => {
+            summary => 'Set `per_arg_yaml` attribute, see Perinci::CmdLine::Base',
             schema => ['bool*', is=>1],
             default => 1,
-            tags => ['category:input'],
+            tags => ['category:script-specification'],
         },
         read_env => {
+            summary => 'Set `read_env` attribute, see Perinci::CmdLine::Base',
             schema => ['bool*', is=>1],
             default => 1,
-            tags => ['category:input'],
+            tags => ['category:script-specification'],
         },
         env_name => {
+            summary => 'Set `env_name` attribute, see Perinci::CmdLine::Base',
             schema => 'str*',
-            tags => ['category:input'],
+            tags => ['category:script-specification'],
         },
         read_config => {
+            summary => 'Set `read_config` attribute, see Perinci::CmdLine::Base',
             schema => ['bool*', is=>1],
             default => 1,
-            tags => ['category:input'],
+            tags => ['category:script-specification'],
         },
         config_filename => {
+            summary => 'Set `config_filename` attribute, see Perinci::CmdLine::Base',
             schema => ['any*', of=>[
                 'str*',
                 ['array*', of=>'str*'],
                 ['array*', of=>'hash*'],
             ]],
-            tags => ['category:input'],
+            tags => ['category:script-specification'],
         },
         config_dirs => {
+            summary => 'Set `config_dirs` attribute, see Perinci::CmdLine::Base',
             schema => ['array*', of=>'dirname*'],
-            tags => ['category:input'],
+            tags => ['category:script-specification'],
         },
         completer_script => {
             summary => 'Script name for shell completion',
@@ -189,6 +202,7 @@ Without specifying this option, the COMPLETION POD section will not be
 generated.
 
 _
+            tags => ['category:completion-specification'],
         },
     },
     args_rels => {
