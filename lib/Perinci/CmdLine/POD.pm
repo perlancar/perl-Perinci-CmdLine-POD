@@ -681,7 +681,7 @@ sub gen_pod_for_pericmd_script {
         my $completer_name = $args{completer_script};
         last unless defined $completer_name;
         my $self_completing;
-        if ($completer_name eq ':self') {
+        if ($completer_name eq ':self' || $completer_name eq $program_name) {
             $self_completing = 1;
             $completer_name = $program_name;
         }
