@@ -1,3 +1,9 @@
+0.009   2017-02-13 (PERLANCAR)
+
+	- [Bugfix] If completer name equals program name, say it as self
+	  completing, don't say it has a companion completer script.
+
+
 0.008   2017-01-27 (PERLANCAR)
 
         - Add options --(no-)gen-subcommands and --gen-subcommand=NAME to allow
