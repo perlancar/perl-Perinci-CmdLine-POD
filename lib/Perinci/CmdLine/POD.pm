@@ -350,6 +350,7 @@ sub gen_pod_for_pericmd_script {
         $program_name = $args{script};
         $program_name =~ s!.+/!!;
     }
+    $program_name //= "program";
     my $summary = $args{summary} // $cli->{summary} //
         $metas{''}{summary} // '(no summary)';
 
