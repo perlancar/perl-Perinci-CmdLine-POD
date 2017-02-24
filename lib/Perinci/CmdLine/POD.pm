@@ -407,8 +407,10 @@ sub gen_pod_for_pericmd_script {
 
         my @examples;
         for my $sc_name (sort keys %clidocdata) {
-            next unless length $sc_name;
-            if (defined $gen_sc) { next unless $sc_name eq $gen_sc }
+            if ($cli->{subcommands}) {
+                next unless length $sc_name;
+                if (defined $gen_sc) { next unless $sc_name eq $gen_sc }
+            }
             my $i = 1;
             for my $eg (@{ $clidocdata{$sc_name}{examples} }) {
                 # add pointer to subcommand, we need it later to show result
