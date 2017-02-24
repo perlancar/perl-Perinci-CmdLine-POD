@@ -350,7 +350,10 @@ sub gen_pod_for_pericmd_script {
         $program_name = $args{script};
         $program_name =~ s!.+/!!;
     }
-    $program_name //= "program";
+    if (!$program_name && defined $args{url} && $args{url} =~ m!.+/([^/]+)\z!) {
+        $program_name = $1;
+    }
+    $program_name //= "PROGRAM";
     my $summary = $args{summary} // $cli->{summary} //
         $metas{''}{summary} // '(no summary)';
 
