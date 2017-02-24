@@ -452,14 +452,6 @@ sub gen_pod_for_pericmd_script {
                                     die sprintf("Example #%d (subcommand %s): cmdline %s: failed: %s", $eg->{_i}, $eg->{_sc_name}, $cmdline, explain_child_error());
                                 }
                             }
-                            if (my $max_lines = $eg->{example_spec}{'x.doc.max_result_lines'}) {
-                                my @lines = split /^/, $fres;
-                                if (@lines > $max_lines) {
-                                    my $n = int($max_lines/2);
-                                    splice @lines, $n, (@lines - $max_lines + 1), "...\n";
-                                    $fres = join("", @lines);
-                                }
-                            }
                             #$self->log_debug(["fres: %s", $fres]);
                         } else {
                             warn sprintf("Example #%d (subcommand %s) has src with unsupported src_plang ($eg->{srg_plang}), skipped showing result", $eg->{_i}, $eg->{_sc_name});
@@ -484,6 +476,15 @@ sub gen_pod_for_pericmd_script {
                         my $format = $res->[3]{'cmdline.default_format'} // $cli->{default_format} // 'text-pretty';
                         require Perinci::Result::Format::Lite;
                         $fres = Perinci::Result::Format::Lite::format($res, $format);
+                    }
+
+                    if (my $max_lines = $eg->{example_spec}{'x.doc.max_result_lines'}) {
+                        my @lines = split /^/, $fres;
+                        if (@lines > $max_lines) {
+                            my $n = int($max_lines/2);
+                            splice @lines, $n, (@lines - $max_lines + 1), "...\n";
+                            $fres = join("", @lines);
+                        }
                     }
 
                     $fres =~ s/^/ /gm;
