@@ -482,7 +482,8 @@ sub gen_pod_for_pericmd_script {
                         my @lines = split /^/, $fres;
                         if (@lines > $max_lines) {
                             my $n = int($max_lines/2);
-                            splice @lines, $n, (@lines - $max_lines + 1), "...\n";
+                            my $num_remove = @lines - $max_lines + 1;
+                            splice @lines, $n, $num_remove, "... ".($num_remove > 1 ? "$num_remove more lines" : "1 more line")." ...\n";
                             $fres = join("", @lines);
                         }
                     }
