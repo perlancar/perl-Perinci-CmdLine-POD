@@ -117,6 +117,10 @@ _
             schema => 'filename*',
             tags => ['category:script-source'],
         },
+        libs => {
+            summary => 'Extra libraries to pass to perl via -I',
+            schema => ['array*', of=>'dirname*'],
+        },
 
         url => {
             summary => 'Set `url` attribute, see Perinci::CmdLine::Base for more details',
@@ -249,6 +253,7 @@ sub gen_pod_for_pericmd_script {
         require Perinci::CmdLine::Dump;
         $dump_res = Perinci::CmdLine::Dump::dump_pericmd_script(
             filename => $args{script},
+            libs => $args{libs},
         );
         return $dump_res unless $dump_res->[0] == 200;
         $cli = $dump_res->[2];
@@ -444,9 +449,9 @@ sub gen_pod_for_pericmd_script {
                             # execute script and get its output
                             if (defined $args{script}) {
                                 my $cmdline = $eg->{cmdline};
-                                $cmdline =~ s/\[\[prog\]\]/shell_quote($^X, "-Ilib", $args{script})/e;
+                                $cmdline =~ s/\[\[prog\]\]/shell_quote($^X, (map {"-I$_"} @{ $args{libs} || [] }), $args{script})/e;
                                 system(
-                                    {shell => 0, capture_stdout => \$fres},
+                                    {log=>1, shell => 0, capture_stdout => \$fres},
                                     "bash", "-c", $cmdline);
                                 if ($?) {
                                     die sprintf("Example #%d (subcommand %s): cmdline %s: failed: %s", $eg->{_i}, $eg->{_sc_name}, $cmdline, explain_child_error());
