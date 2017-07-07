@@ -729,12 +729,8 @@ in your bash startup (e.g. F<~/.bashrc>). Your next shell session will then
 recognize tab completion for the command. Or, you can also directly execute the
 line above in your shell to activate immediately.
 
-It is recommended, however, that you install L<shcompgen> which allows you to
-activate completion scripts for several kinds of scripts on multiple shells.
-Some CPAN distributions (those that are built with
-L<Dist::Zilla::Plugin::GenShellCompletion>) will even automatically enable shell
-completion for their included scripts (using L<shcompgen>) at installation time,
-so you can immediately have tab completion.
+It is recommended, however, that you install modules using L<cpanm-shcompgen>
+which can activate shell completion for scripts immediately.
 
 $h2 tcsh
 
