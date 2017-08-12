@@ -512,13 +512,16 @@ sub gen_pod_for_pericmd_script {
     # section: DESCRIPTION
     {
         my $k = defined $gen_sc ? $gen_sc : '';
-        last unless $metas{$k}{description};
+        # XXX proper .alt search
+        my $desc = $metas{$k}{'description.alt.env.cmdline'} //
+            $metas{$k}{description};
+        last unless $desc;
 
         require Markdown::To::POD;
 
         my @sectpod;
         push @sectpod,
-            Markdown::To::POD::markdown_to_pod($metas{$k}{description});
+            Markdown::To::POD::markdown_to_pod($desc);
         push @sectpod, "\n\n";
 
         push @{ $resmeta->{'func.sections'} }, {name=>'DESCRIPTION', content=>join("", @sectpod), ignore=>1};
