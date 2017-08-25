@@ -435,7 +435,7 @@ sub gen_pod_for_pericmd_script {
                 my $meta = $metas{ $eg->{_sc_name} };
                 push @sectpod, "$eg->{summary}:\n\n" if $eg->{summary};
                 my $cmdline = $eg->{cmdline};
-                $cmdline =~ s/\[\[prog\]\]/$program_name/;
+                $cmdline =~ s/\[\[prog\]\]/$cli->{subcommands} ? "$program_name $eg->{_sc_name}" : $program_name/e;
                 push @sectpod, " % $cmdline\n";
 
                 my $show_result;
@@ -449,7 +449,7 @@ sub gen_pod_for_pericmd_script {
                             # execute script and get its output
                             if (defined $args{script}) {
                                 my $cmdline = $eg->{cmdline};
-                                $cmdline =~ s/\[\[prog\]\]/shell_quote($^X, (map {"-I$_"} @{ $args{libs} || [] }), $args{script})/e;
+                                $cmdline =~ s/\[\[prog\]\]/shell_quote($^X, (map {"-I$_"} @{ $args{libs} || [] }), $args{script}, ($cli->{subcommands} ? ($eg->{_sc_name}) : ()))/e;
                                 system(
                                     {log=>1, shell => 0, capture_stdout => \$fres},
                                     "bash", "-c", $cmdline);
