@@ -466,6 +466,7 @@ sub gen_pod_for_pericmd_script {
                         my $res;
                         if (exists $eg->{example_spec}{result}) {
                             $res = $eg->{example_spec}{result};
+                            $res = [200, "OK", $res] if $meta->{_orig_result_naked};
                         } else {
                             my %extra;
                             if ($eg->{example_spec}{argv}) {
