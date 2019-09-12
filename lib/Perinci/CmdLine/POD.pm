@@ -50,8 +50,12 @@ sub _fmt_opt {
 
     push @res, "Default value:\n\n ", dmp($ospec->{default}), "\n\n" if $show_default;
 
-    if ($arg_spec->{schema} && $arg_spec->{schema}[1]{in} && !$ospec->{is_alias}) {
-        push @res, "Valid values:\n\n ", dmp($arg_spec->{schema}[1]{in}), "\n\n";
+    if ($arg_spec->{schema} && !$ospec->{is_alias}) {
+        if ($arg_spec->{schema}[1]{in}) {
+            push @res, "Valid values:\n\n ", dmp($arg_spec->{schema}[1]{in}), "\n\n";
+        } elsif ($arg_spec->{schema}[1]{examples}) {
+            push @res, "Example valid values:\n\n ", dmp($arg_spec->{schema}[1]{examples}), "\n\n";
+        }
     }
 
     if ($ospec->{main_opt}) {
