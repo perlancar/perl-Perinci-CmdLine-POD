@@ -1,6 +1,8 @@
 package Perinci::CmdLine::POD;
 
+# AUTHORITY
 # DATE
+# DIST
 # VERSION
 
 use 5.010001;
@@ -247,6 +249,7 @@ _
 };
 sub gen_pod_for_pericmd_script {
     no warnings 'once';
+    require Text::Wrap;
 
     my %args = @_;
 
@@ -405,7 +408,7 @@ sub gen_pod_for_pericmd_script {
                     if (defined $gen_sc) { next unless $sc_name eq $gen_sc }
                     my $usage = $clidocdata{$sc_name}->{usage_line};
                     $usage =~ s/\[\[prog\]\]/$program_name $sc_name/;
-                    push @sectpod, " % $usage\n";
+                    push @sectpod, Text::Wrap::wrap(' % ', '     ', "$usage\n");
                 }
             } else {
                 push @sectpod, " % $program_name [options] [subcommand] [arg]...\n";
@@ -414,7 +417,7 @@ sub gen_pod_for_pericmd_script {
         } else {
             my $usage = $clidocdata{''}->{usage_line};
             $usage =~ s/\[\[prog\]\]/$program_name/;
-            push @sectpod, " % $usage\n\n";
+            push @sectpod, Text::Wrap::wrap(" % ", "     ", "$usage\n")."\n";
         }
 
         my @examples;
