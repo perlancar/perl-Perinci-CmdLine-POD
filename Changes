@@ -1,3 +1,11 @@
+0.018   2020-05-29  Released-By: PERLANCAR; Urgency: medium
+
+	- Wrap generated usage line.
+
+	- In addition to rendering schema clause 'in' into 'Valid values',
+	  also render schema clause 'examples' into 'Example value values'.
+
+
 0.017   2019-01-25  Released-By: PERLANCAR
 
 	- [bugfix] Handle naked result in example specification.
