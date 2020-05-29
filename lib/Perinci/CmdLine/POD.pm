@@ -417,7 +417,7 @@ sub gen_pod_for_pericmd_script {
         } else {
             my $usage = $clidocdata{''}->{usage_line};
             $usage =~ s/\[\[prog\]\]/$program_name/;
-            push @sectpod, Text::Wrap::wrap(" % ", "     ", "$usage\n\m");
+            push @sectpod, Text::Wrap::wrap(" % ", "     ", "$usage\n\n");
         }
 
         my @examples;
