@@ -1,6 +1,15 @@
-0.018   2020-05-29  Released-By: PERLANCAR; Urgency: medium
+0.018.1 2020-05-29  Released-By: PERLANCAR; Urgency: medium
 
 	- Wrap generated usage line.
+
+        - UPDATE 2020-05-30: renamed to 0.018.1 due to conflict.
+
+
+0.018   2020-04-27  Released-By: PERLANCAR; Urgency: medium
+
+	- Wrap usage line because it's now potentially long, since
+	  Perinci::Sub::To::CLIDocData lists all options instead of just
+	  '[options]'.
 
 	- In addition to rendering schema clause 'in' into 'Valid values',
 	  also render schema clause 'examples' into 'Example value values'.
