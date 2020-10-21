@@ -851,12 +851,25 @@ _
                 "You can also put configuration for multiple programs inside a single file, and use filter C<program=NAME> in section names, e.g. C<[program=NAME ...]> or C<[SOMESECTION program=NAME]>. ",
                 "The section will then only be used when the reading program matches.\n\n",
 
-                "Finally, you can filter a section by environment variable using the filter C<env=CONDITION> in section names. ",
+                "You can also filter a section by environment variable using the filter C<env=CONDITION> in section names. ",
                 "For example if you only want a section to be read if a certain environment variable is true: C<[env=SOMEVAR ...]> or C<[SOMESECTION env=SOMEVAR ...]>. ",
                 "If you only want a section to be read when the value of an environment variable has value equals something: C<[env=HOSTNAME=blink ...]> or C<[SOMESECTION env=HOSTNAME=blink ...]>. ",
                 "If you only want a section to be read when the value of an environment variable does not equal something: C<[env=HOSTNAME!=blink ...]> or C<[SOMESECTION env=HOSTNAME!=blink ...]>. ",
                 "If you only want a section to be read when an environment variable contains something: C<[env=HOSTNAME*=server ...]> or C<[SOMESECTION env=HOSTNAME*=server ...]>. ",
                 "Note that currently due to simplistic parsing, there must not be any whitespace in the value being compared because it marks the beginning of a new section filter or section name.\n\n",
+
+                "To load and configure plugins, you can use either the C<-plugins> parameter (e.g. C<< -plugins=DumpArgs >> or C<< -plugins=DumpArgs\@before_validation >>), ",
+                "or use the C<[plugin=NAME ...]> sections, for example:\n\n",
+                " [plugin=DumpArgs]\n",
+                " -event=before_validation\n",
+                " -prio=99\n",
+                " \n",
+                " [plugin=Foo]\n",
+                " -event=after_validation\n",
+                " arg1=val1\n",
+                " arg2=val2\n\n",
+                " \n\n",
+                "which is equivalent to setting C<< -plugins=-DumpArgs\@before_validation\@99,-Foo\@after_validation,arg1,val1,arg2,val2 >>.\n\n",
 
                 "List of available configuration parameters", ($gen_scs ? "" : " (note that each subcommand might have additional configuration parameter, refer to each subcommand's documentation for more details)"), ":\n\n",
             );
