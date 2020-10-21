@@ -1,3 +1,8 @@
+0.021   2020-10-21  Released-By: PERLANCAR; Urgency: medium
+
+	- Fix generated examples.
+
+
 0.020   2020-10-21  Released-By: PERLANCAR; Urgency: medium
 
 	- In generated 'CONFIGURATION FILE' POD section, mention about
