@@ -858,18 +858,18 @@ _
                 "If you only want a section to be read when an environment variable contains something: C<[env=HOSTNAME*=server ...]> or C<[SOMESECTION env=HOSTNAME*=server ...]>. ",
                 "Note that currently due to simplistic parsing, there must not be any whitespace in the value being compared because it marks the beginning of a new section filter or section name.\n\n",
 
-                "To load and configure plugins, you can use either the C<-plugins> parameter (e.g. C<< -plugins=DumpArgs >> or C<< -plugins=DumpArgs\@before_validation >>), ",
+                "To load and configure plugins, you can use either the C<-plugins> parameter (e.g. C<< -plugins=DumpArgs >> or C<< -plugins=DumpArgs\@before_validate_args >>), ",
                 "or use the C<[plugin=NAME ...]> sections, for example:\n\n",
                 " [plugin=DumpArgs]\n",
-                " -event=before_validation\n",
+                " -event=before_validate_args\n",
                 " -prio=99\n",
                 " \n",
                 " [plugin=Foo]\n",
-                " -event=after_validation\n",
+                " -event=after_validate_args\n",
                 " arg1=val1\n",
                 " arg2=val2\n\n",
                 " \n\n",
-                "which is equivalent to setting C<< -plugins=-DumpArgs\@before_validation\@99,-Foo\@after_validation,arg1,val1,arg2,val2 >>.\n\n",
+                "which is equivalent to setting C<< -plugins=-DumpArgs\@before_validate_args\@99,-Foo\@after_validate_args,arg1,val1,arg2,val2 >>.\n\n",
 
                 "List of available configuration parameters", ($gen_scs ? "" : " (note that each subcommand might have additional configuration parameter, refer to each subcommand's documentation for more details)"), ":\n\n",
             );
