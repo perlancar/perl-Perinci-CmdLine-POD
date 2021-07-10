@@ -406,18 +406,18 @@ sub gen_pod_for_pericmd_script {
                 for my $sc_name (sort keys %clidocdata) {
                     next unless length $sc_name;
                     if (defined $gen_sc) { next unless $sc_name eq $gen_sc }
-                    my $usage = $clidocdata{$sc_name}->{usage_line};
+                    my $usage = $clidocdata{$sc_name}->{'usage_line.alt.fmt.pod'};
                     $usage =~ s/\[\[prog\]\]/$program_name $sc_name/;
-                    push @sectpod, Text::Wrap::wrap(' % ', '     ', "$usage\n");
+                    push @sectpod, "% $usage\n\n";
                 }
             } else {
-                push @sectpod, " % $program_name [options] [subcommand] [arg]...\n";
+                push @sectpod, "% B<$program_name> [I<options>] [I<subcommand>] [I<arg>]...\n\n";
             }
-            push @sectpod, "\n";
+            push @sectpod, "\n\n";
         } else {
-            my $usage = $clidocdata{''}->{usage_line};
+            my $usage = $clidocdata{''}->{'usage_line.alt.fmt.pod'};
             $usage =~ s/\[\[prog\]\]/$program_name/;
-            push @sectpod, Text::Wrap::wrap(" % ", "     ", "$usage\n")."\n";
+            push @sectpod, "% $usage\n\n";
         }
 
         my @examples;
