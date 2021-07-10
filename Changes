@@ -1,4 +1,9 @@
-0.022   2021-07-10  Released-By: PERLANCAR; Urgency: medium
+0.023   2021-07-10  Released-By: PERLANCAR; Urgency: high
+
+	- Merge releases 0.022 and 0.022.1.
+
+
+0.022.1 2021-07-10  Released-By: PERLANCAR; Urgency: medium
 
 	- [ux] Use POD-formatted usage line from
 	  Perinci::Sub::To::CLIDocData 0.297.
