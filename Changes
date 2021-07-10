@@ -5,6 +5,17 @@
 
 	- Mention support for [env=VARNAME=value] section in the generated POD.
 
+        - UPDATE 2021-07-10: rename release from 0.022 to 0.022.1 due to
+          conflict.
+
+
+0.022   2021-05-07  Released-By: PERLANCAR; Urgency: medium
+
+	- Note command-line options that can be specified as command-line
+	  arguments ('pos' defined).
+
+	- Mention support for [env=VARNAME=value] section in the generated POD.
+
 
 0.021   2020-10-21  Released-By: PERLANCAR; Urgency: medium
 

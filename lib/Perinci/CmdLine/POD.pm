@@ -69,6 +69,18 @@ sub _fmt_opt {
         push @res, "$ospec->{description}\n\n" if $ospec->{description};
     }
 
+    if (defined $arg_spec->{pos}) {
+        require Lingua::EN::Numbers::Ordinate;
+        my $ord = Lingua::EN::Numbers::Ordinate::ordinate($arg_spec->{pos} + 1);
+        if ($arg_spec->{slurpy} ||
+                $arg_spec->{greedy} # old name
+            ) {
+            push @res, "Can also be specified as the $ord command-line argument and onwards.\n\n";
+        } else {
+            push @res, "Can also be specified as the $ord command-line argument.\n\n";
+        }
+    }
+
     if (($ospec->{orig_opt} // '') =~ /\@/) {
         push @res, "Can be specified multiple times.\n\n";
     } elsif (($ospec->{orig_opt} // '') =~ /\%/) {
