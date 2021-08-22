@@ -889,7 +889,6 @@ _
             }
         }
         if (@examples) {
-            push @sectpod, "Examples:\n\n";
             for my $eg (@examples) {
                 my $url = $urls{ $eg->{_sc_name} };
                 my $meta = $metas{ $eg->{_sc_name} };
