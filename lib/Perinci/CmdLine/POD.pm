@@ -1,10 +1,5 @@
 package Perinci::CmdLine::POD;
 
-# AUTHORITY
-# DATE
-# DIST
-# VERSION
-
 use 5.010001;
 use strict;
 use warnings;
@@ -15,6 +10,12 @@ use Proc::ChildError qw(explain_child_error);
 use String::ShellQuote;
 
 use Exporter 'import';
+
+# AUTHORITY
+# DATE
+# DIST
+# VERSION
+
 our @EXPORT_OK = qw(gen_pod_for_pericmd_script);
 
 our $pa = do {
@@ -797,7 +798,7 @@ _
         # will be fixed in the dump module in the future.
         local $0 = $program_name;
         local @INC = ("lib", @INC);
-        eval "use " . ref($cli) . "()";
+        eval "use " . ref($cli) . "()"; ## no critic: BuiltinFunctions::ProhibitStringyEval
         die if $@;
 
         last unless $cli->read_config;
@@ -952,7 +953,7 @@ _
         # will be fixed in the dump module in the future.
         local $0 = $program_name;
         local @INC = ("lib", @INC);
-        eval "use " . ref($cli) . "()";
+        eval "use " . ref($cli) . "()"; ## no critic: BuiltinFunctions::ProhibitStringyEval
         die if $@;
 
         last unless $cli->read_env;
