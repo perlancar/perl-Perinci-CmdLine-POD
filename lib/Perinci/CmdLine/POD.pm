@@ -515,7 +515,6 @@ sub gen_pod_for_pericmd_script {
     # section: SYNOPSIS
     {
         my @sectpod;
-        push @sectpod, "Usage:\n\n";
         if ($cli->{subcommands}) {
             if ($gen_scs) {
                 for my $sc_name (sort keys %clidocdata) {
