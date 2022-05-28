@@ -67,7 +67,10 @@ sub _fmt_opt {
         $main_opt =~ s/=.+//;
         push @res, "See C<$main_opt>.\n\n";
     } else {
-        push @res, "$ospec->{description}\n\n" if $ospec->{description};
+        require Markdown::To::POD;
+
+        push @res, Markdown::To::POD::markdown_to_pod($ospec->{description}), "\n\n"
+            if $ospec->{description};
     }
 
     if (defined $arg_spec->{pos}) {
