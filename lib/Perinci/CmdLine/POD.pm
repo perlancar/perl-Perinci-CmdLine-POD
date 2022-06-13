@@ -435,10 +435,13 @@ sub gen_pod_for_pericmd_script {
         }
         if (@examples) {
             $has_examples++;
+            my $num = 0;
             for my $eg (@examples) {
+                $num++;
                 my $url = $urls{ $eg->{_sc_name} };
                 my $meta = $metas{ $eg->{_sc_name} };
-                push @sectpod, "$eg->{summary}:\n\n" if $eg->{summary};
+                my $title = $eg->{summary} ? $eg->{summary} : "Example #$num";
+                push @sectpod, "=head2 $title\n\n";
                 my $cmdline = $eg->{cmdline};
                 $cmdline =~ s/\[\[prog\]\]/$cli->{subcommands} ? "$program_name $eg->{_sc_name}" : $program_name/e;
                 push @sectpod, " % $cmdline\n";
@@ -508,6 +511,13 @@ sub gen_pod_for_pericmd_script {
                 unless ($show_result) {
                     push @sectpod, "\n";
                 }
+
+                if ($eg->{description}) {
+                    require Markdown::To::POD;
+
+                    push @sectpod, Markdown::To::POD::markdown_to_pod($eg->{description}), "\n\n";
+                }
+
             } # for example
         } # if @examples
 
