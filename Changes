@@ -1,3 +1,9 @@
+0.029   2022-06-13  Released-By: PERLANCAR; Urgency: medium
+
+        - Format generated EXAMPLES section with subheading for each
+          example, and include the example's description.
+
+
 0.028   2022-05-28  Released-By: PERLANCAR; Urgency: medium
 
         - [bugfix] Option description was not formatted (from Markdown) to
