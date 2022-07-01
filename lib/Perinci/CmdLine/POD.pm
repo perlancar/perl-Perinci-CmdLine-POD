@@ -3,6 +3,7 @@ package Perinci::CmdLine::POD;
 use 5.010001;
 use strict;
 use warnings;
+use Log::ger;
 
 use Data::Dmp;
 use IPC::System::Options qw(system);
@@ -280,6 +281,9 @@ sub gen_pod_for_pericmd_script {
         );
         return $dump_res unless $dump_res->[0] == 200;
         $cli = $dump_res->[2];
+        $cli->{program_name} = $args{program_name} if defined $args{program_name};
+        $cli->{env_name}     = $args{env_name}     if defined $args{env_name};
+        # XXX override other aspects
         %metas = %{ $dump_res->[3]{'func.pericmd_inline_metas'} }
             if $dump_res->[3]{'func.pericmd_inline_metas'};
     } else {
@@ -975,9 +979,11 @@ _
             #$self->log_debug(["skipped file %s (script does not read env)", $filename]);
 
             my $env_name = $cli->env_name;
+            log_trace "env_name=%s (1)", $env_name;
             if (!$env_name) {
                 $env_name = uc($program_name);
                 $env_name =~ s/\W+/_/g;
+                log_trace "env_name=%s (2)", $env_name;
             }
 
             push @sectpod, "=head2 ", $env_name, "\n\n";
