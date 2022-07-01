@@ -957,29 +957,55 @@ _
 
     # section: ENVIRONMENT
     {
-        last if defined $gen_sc;
+        my @sectpod;
 
-        # workaround because currently the dumped object does not contain all
-        # attributes in the hash (Moo/Mo issue?), we need to access the
-        # attribute accessor method first to get them recorded in the hash. this
-        # will be fixed in the dump module in the future.
-        local $0 = $program_name;
-        local @INC = ("lib", @INC);
-        eval "use " . ref($cli) . "()"; ## no critic: BuiltinFunctions::ProhibitStringyEval
-        die if $@;
+      FOO_OPT: {
+            last if defined $gen_sc;
 
-        last unless $cli->read_env;
-        #$self->log_debug(["skipped file %s (script does not read env)", $filename]);
+            # workaround because currently the dumped object does not contain
+            # all attributes in the hash (Moo/Mo issue?), we need to access the
+            # attribute accessor method first to get them recorded in the hash.
+            # this will be fixed in the dump module in the future.
+            local $0 = $program_name;
+            local @INC = ("lib", @INC);
+            eval "use " . ref($cli) . "()"; ## no critic: BuiltinFunctions::ProhibitStringyEval
+            die if $@;
 
-        my $env_name = $cli->env_name;
-        if (!$env_name) {
-            $env_name = uc($program_name);
-            $env_name =~ s/\W+/_/g;
+            last unless $cli->read_env;
+            #$self->log_debug(["skipped file %s (script does not read env)", $filename]);
+
+            my $env_name = $cli->env_name;
+            if (!$env_name) {
+                $env_name = uc($program_name);
+                $env_name =~ s/\W+/_/g;
+            }
+
+            push @sectpod, "=head2 ", $env_name, "\n\n";
+            push @sectpod, "String. Specify additional command-line options.\n\n";
         }
 
-        my @sectpod;
-        push @sectpod, "=head2 ", $env_name, " => str\n\n";
-        push @sectpod, "Specify additional command-line options.\n\n";
+      X_ENVS: {
+            my $meta = $metas{ defined $gen_sc ? $gen_sc : '' };
+            last unless $meta->{'x.envs'};
+            for my $envname (sort keys %{ $meta->{'x.envs'} }) {
+                my $envspec = $meta->{'x.envs'}{$envname};
+                push @sectpod, "=head2 ", $envname, "\n\n";
+
+                if ($envspec->{schema}) {
+                    require Data::Sah::Terse;
+                    push @sectpod, Data::Sah::Terse::terse_schema($envspec->{schema}), ". ";
+                }
+                if ($envspec->{summary}) {
+                    push @sectpod, $envspec->{summary}, ".";
+                }
+                push @sectpod, "\n\n";
+
+                if ($envspec->{description}) {
+                    require Markdown::To::POD;
+                    push @sectpod, Markdown::To::POD::markdown_to_pod($envspec->{description}), "\n\n";
+                }
+            }
+        } # X_ENVS
 
         push @{ $resmeta->{'func.sections'} }, {name=>'ENVIRONMENT', content=>join("", @sectpod)};
         push @pod, "=head1 ENVIRONMENT\n\n", @sectpod;
