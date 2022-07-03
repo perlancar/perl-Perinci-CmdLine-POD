@@ -1,3 +1,9 @@
+0.032   2022-07-03  Released-By: PERLANCAR; Urgency: medium
+
+        - Change formatting of generated FILES section (now uses =head2 for
+          each file).
+
+
 0.031   2022-07-01  Released-By: PERLANCAR; Urgency: medium
 
         - [bugfix] Override CLI script's program_name and env_name from
