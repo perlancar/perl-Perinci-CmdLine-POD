@@ -849,7 +849,7 @@ _
                     my $p = "$config_dir/$cfn->{filename}";
                     push @files, $p;
                     push @files_sectpod, $cfn->{section} // '';
-                    push @files_sectpod, "F<$p>\n\n";
+                    push @files_sectpod, "=head2 $p\n\n";
                 }
             }
         }
