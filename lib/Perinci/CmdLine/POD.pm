@@ -1017,6 +1017,20 @@ _
         push @pod, "=head1 ENVIRONMENT\n\n", @sectpod;
     }
 
+
+  X_DOC_FAQ: {
+        my @sectpod;
+
+        my $meta = $metas{ defined $gen_sc ? $gen_sc : '' };
+        last unless $meta->{'x.doc.faq'};
+
+        require Markdown::To::POD;
+        push @sectpod, Markdown::To::POD::markdown_to_pod($meta->{'x.doc.faq'}), "\n\n";
+
+        push @{ $resmeta->{'func.sections'} }, {name=>'FAQ', content=>join("", @sectpod)};
+        push @pod, "=head1 FAQ\n\n", @sectpod;
+    }
+
     # section: SEE ALSO
     {
         my @sectpod;
