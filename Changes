@@ -1,3 +1,9 @@
+0.034   2022-08-12  Released-By: PERLANCAR; Urgency: medium
+
+        - Tweak usage in Synopsis: remove shell prompt. Shell prompt is still
+          displayed in the Examples section.
+
+
 0.033   2022-07-29  Released-By: PERLANCAR; Urgency: medium
 
         - Render x.doc.faq.
