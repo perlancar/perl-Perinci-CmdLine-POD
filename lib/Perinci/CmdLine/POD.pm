@@ -532,7 +532,22 @@ sub gen_pod_for_pericmd_script {
     # section: SYNOPSIS
     {
         my @sectpod;
+
+        # 1. show usage that comes from common options
+
+        for my $opt (sort keys %{ $cli->{common_opts} || {} }) {
+            my $co_spec = $cli->{common_opts}{$opt};
+            if (defined $co_spec->{'usage.alt.fmt.pod'}) {
+                push @sectpod, "B<$program_name> ".$co_spec->{'usage.alt.fmt.pod'}."\n\n";
+            } elsif (defined $co_spec->{usage}) {
+                # text format, the next best thing
+                require String::PodQuote;
+                push @sectpod, "B<$program_name> ".String::PodQuote::pod_escape($co_spec->{usage})."\n\n";
+            }
+        }
+
         if ($cli->{subcommands}) {
+            # 2a. show per-subcommand usage lines, if there are subcommands
             if ($gen_scs) {
                 for my $sc_name (sort keys %clidocdata) {
                     next unless length $sc_name;
@@ -546,10 +561,13 @@ sub gen_pod_for_pericmd_script {
             }
             push @sectpod, "\n\n";
         } else {
+            # 2b. show main usage line
             my $usage = $clidocdata{''}->{'usage_line.alt.fmt.pod'};
             $usage =~ s/\[\[prog\]\]/$program_name/;
             push @sectpod, "$usage\n\n";
         }
+
+        # point to examples in Examples section, if any
         push @sectpod, "\n\nSee examples in the L</EXAMPLES> section.\n\n" if $has_examples;
 
         push @{ $resmeta->{'func.sections'} }, {name=>'SYNOPSIS', content=>join("", @sectpod), ignore=>1};
