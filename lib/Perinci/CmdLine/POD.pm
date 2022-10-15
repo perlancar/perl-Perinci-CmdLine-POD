@@ -31,6 +31,8 @@ sub _fmt_opt {
 
     my @res;
 
+    my $has_text;
+
     my $arg_spec = $ospec->{arg_spec};
     my $is_bool = $arg_spec->{schema} &&
         $arg_spec->{schema}[0] eq 'bool';
@@ -50,15 +52,23 @@ sub _fmt_opt {
 
     push @res, "=item $opt\n\n";
 
-    push @res, "$ospec->{summary}$add_sum.\n\n" if $ospec->{summary};
+    if ($ospec->{summary}) {
+        push @res, "$ospec->{summary}$add_sum.\n\n";
+        $has_text++;
+    }
 
-    push @res, "Default value:\n\n ", dmp($ospec->{default}), "\n\n" if $show_default;
+    if ($show_default) {
+        push @res, "Default value:\n\n ", dmp($ospec->{default}), "\n\n";
+        $has_text++;
+    }
 
     if ($arg_spec->{schema} && !$ospec->{is_alias}) {
         if ($arg_spec->{schema}[1]{in}) {
             push @res, "Valid values:\n\n ", dmp($arg_spec->{schema}[1]{in}), "\n\n";
+            $has_text++;
         } elsif ($arg_spec->{schema}[1]{examples}) {
             push @res, "Example valid values:\n\n ", dmp($arg_spec->{schema}[1]{examples}), "\n\n";
+            $has_text++;
         }
     }
 
@@ -67,10 +77,12 @@ sub _fmt_opt {
         $main_opt =~ s/\s*,.+//;
         $main_opt =~ s/=.+//;
         push @res, "See C<$main_opt>.\n\n";
+        $has_text++;
     } else {
         require Markdown::To::POD;
 
-        my $description = $ospec->{description} // '(No description)';
+        my $description = $ospec->{description};
+        $description = '(No description)' if !defined $description && !$has_text;
         push @res, Markdown::To::POD::markdown_to_pod($description), "\n\n"
             if $description;
     }
