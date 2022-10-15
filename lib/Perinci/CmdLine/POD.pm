@@ -70,8 +70,9 @@ sub _fmt_opt {
     } else {
         require Markdown::To::POD;
 
-        push @res, Markdown::To::POD::markdown_to_pod($ospec->{description}), "\n\n"
-            if $ospec->{description};
+        my $description = $ospec->{description} // '(No description)';
+        push @res, Markdown::To::POD::markdown_to_pod($description), "\n\n"
+            if $description;
     }
 
     if (defined $arg_spec->{pos}) {
