@@ -1,3 +1,9 @@
+0.036   2022-10-15  Released-By: PERLANCAR; Urgency: medium
+
+        - [ux] In generated option's POD, use '(No description)' as
+          description when there is no description, to avoid ambiguity.
+
+
 0.035   2022-10-12  Released-By: PERLANCAR; Urgency: medium
 
         - Show other usage lines (from common_opts that are to be used on
