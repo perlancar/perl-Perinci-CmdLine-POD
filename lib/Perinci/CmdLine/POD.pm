@@ -548,14 +548,15 @@ sub gen_pod_for_pericmd_script {
 
         # 1. show usage that comes from common options
 
+        my @usage;
         for my $opt (sort keys %{ $cli->{common_opts} || {} }) {
             my $co_spec = $cli->{common_opts}{$opt};
             if (defined $co_spec->{'usage.alt.fmt.pod'}) {
-                push @sectpod, "B<$program_name> ".$co_spec->{'usage.alt.fmt.pod'}."\n\n";
+                push @usage, "B<$program_name> ".$co_spec->{'usage.alt.fmt.pod'}."\n\n";
             } elsif (defined $co_spec->{usage}) {
                 # text format, the next best thing
                 require String::PodQuote;
-                push @sectpod, "B<$program_name> ".String::PodQuote::pod_escape($co_spec->{usage})."\n\n";
+                push @usage, "B<$program_name> ".String::PodQuote::pod_escape($co_spec->{usage})."\n\n";
             }
         }
 
@@ -565,20 +566,23 @@ sub gen_pod_for_pericmd_script {
                 for my $sc_name (sort keys %clidocdata) {
                     next unless length $sc_name;
                     if (defined $gen_sc) { next unless $sc_name eq $gen_sc }
-                    my $usage = $clidocdata{$sc_name}->{'usage_line.alt.fmt.pod'};
-                    $usage =~ s/\[\[prog\]\]/$program_name $sc_name/g;
-                    push @sectpod, "$usage\n\n";
+                    my $subcmd_usage = $clidocdata{$sc_name}->{'usage_line.alt.fmt.pod'};
+                    $subcmd_usage =~ s/\[\[prog\]\]/$program_name $sc_name/g;
+                    push @usage, "$subcmd_usage\n\n";
                 }
             } else {
-                push @sectpod, "B<$program_name> [I<options>] [I<subcommand>] [I<arg>]...\n\n";
+                push @usage, "B<$program_name> [I<options>] [I<subcommand>] [I<arg>]...\n\n";
             }
-            push @sectpod, "\n\n";
+            push @usage, "\n\n";
         } else {
             # 2b. show main usage line
-            my $usage = $clidocdata{''}->{'usage_line.alt.fmt.pod'};
-            $usage =~ s/\[\[prog\]\]/$program_name/g;
-            push @sectpod, "$usage\n\n";
+            my $main_usage = $clidocdata{''}->{'usage_line.alt.fmt.pod'};
+            $main_usage =~ s/\[\[prog\]\]/$program_name/g;
+            push @usage, "$main_usage\n\n";
         }
+
+        $resmeta->{'func.usage'} = join('', @usage);
+        push @sectpod, @usage;
 
         # point to examples in Examples section, if any
         push @sectpod, "\n\nSee examples in the L</EXAMPLES> section.\n\n" if $has_examples;
